@@ -104,7 +104,12 @@ section{padding-block:72px;border-top:1px solid var(--rule)}
 .sub{font-family:var(--disp);font-size:21px;font-weight:700;letter-spacing:-.01em;margin:0 0 16px}
 .sub+.grid{margin-bottom:38px}
 .grid{display:grid;gap:14px;grid-template-columns:repeat(auto-fill,minmax(232px,1fr))}
-.dev-item{padding:17px 19px;border:1px solid var(--rule);border-radius:10px;background:var(--card)}
+.dev-item{padding:14px 16px;border:1px solid var(--rule);border-radius:10px;background:var(--card);
+  display:grid;grid-template-columns:46px 1fr;grid-template-rows:auto auto;gap:0 13px;align-items:center}
+.dev-item img{grid-row:1/3;width:46px;height:46px;object-fit:contain}
+.dev-item .noimg{grid-row:1/3;width:46px;height:46px;border:1px dashed var(--rule);border-radius:7px}
+.dev-item .n{align-self:end}
+.dev-item .m{align-self:start}
 .dev-item .n{font-weight:700}
 .dev-item .m{font-family:var(--mono);font-size:12.5px;color:var(--soft);margin-top:4px}
 .dev-item .d{font-family:var(--mono);font-size:12.5px;color:var(--blue-deep);margin-top:9px}
@@ -222,32 +227,32 @@ footer a{color:var(--soft)}
 
     <h3 class="sub">Working</h3>
     <div class="grid">
-      <div class="dev-item"><div class="n">Zinwa Q25</div><div class="m">q25</div></div>
-      <div class="dev-item"><div class="n">MinimalPhone</div><div class="m">mp01</div></div>
-      <div class="dev-item"><div class="n">GreenTouch MindSet</div><div class="m">mindphone</div></div>
-      <div class="dev-item"><div class="n">FuriLabs</div><div class="m">radon</div></div>
-      <div class="dev-item"><div class="n">Samsung Galaxy A3 (2015)</div><div class="m">a3-2015</div></div>
-      <div class="dev-item"><div class="n">Google Pixel 3a</div><div class="m">sargo</div></div>
-      <div class="dev-item"><div class="n">LG Nexus 5</div><div class="m">hammerhead</div></div>
-      <div class="dev-item"><div class="n">Xiaomi Mi A1</div><div class="m">tissot</div></div>
-      <div class="dev-item"><div class="n">Xiaomi Redmi 5</div><div class="m">rosy</div></div>
-      <div class="dev-item"><div class="n">Xiaomi Redmi Note 4</div><div class="m">mido</div></div>
-      <div class="dev-item"><div class="n">HP TouchPad</div><div class="m">tenderloin</div></div>
-      <div class="dev-item"><div class="n">BlackBerry Key2</div><div class="m">athena</div></div>
-      <div class="dev-item"><div class="n">PinePhone</div><div class="m">pinephone</div></div>
-      <div class="dev-item"><div class="n">PinePhone Pro</div><div class="m">pinephonepro</div></div>
-      <div class="dev-item"><div class="n">PineTab2</div><div class="m">pinetab2</div></div>
+      <div class="dev-item"><span class="noimg" aria-hidden="true"></span><div class="n">Zinwa Q25</div><div class="m">q25</div></div>
+      <div class="dev-item"><span class="noimg" aria-hidden="true"></span><div class="n">MinimalPhone</div><div class="m">mp01</div></div>
+      <div class="dev-item"><span class="noimg" aria-hidden="true"></span><div class="n">GreenTouch MindSet</div><div class="m">mindphone</div></div>
+      <div class="dev-item"><span class="noimg" aria-hidden="true"></span><div class="n">FuriLabs</div><div class="m">radon</div></div>
+      <div class="dev-item"><img src="devices/galaxya3.jpg" alt="Samsung Galaxy A3 (2015)"><div class="n">Samsung Galaxy A3 (2015)</div><div class="m">a3-2015</div></div>
+      <div class="dev-item"><img src="devices/pixel3a.jpg" alt="Google Pixel 3a"><div class="n">Google Pixel 3a</div><div class="m">sargo</div></div>
+      <div class="dev-item"><img src="devices/nexus5.jpg" alt="LG Nexus 5"><div class="n">LG Nexus 5</div><div class="m">hammerhead</div></div>
+      <div class="dev-item"><img src="devices/mia1.jpg" alt="Xiaomi Mi A1"><div class="n">Xiaomi Mi A1</div><div class="m">tissot</div></div>
+      <div class="dev-item"><span class="noimg" aria-hidden="true"></span><div class="n">Xiaomi Redmi 5</div><div class="m">rosy</div></div>
+      <div class="dev-item"><img src="devices/redminote4.jpg" alt="Xiaomi Redmi Note 4"><div class="n">Xiaomi Redmi Note 4</div><div class="m">mido</div></div>
+      <div class="dev-item"><img src="devices/touchpad.jpg" alt="HP TouchPad"><div class="n">HP TouchPad</div><div class="m">tenderloin</div></div>
+      <div class="dev-item"><img src="devices/key2.jpg" alt="BlackBerry Key2"><div class="n">BlackBerry Key2</div><div class="m">athena</div></div>
+      <div class="dev-item"><img src="devices/pinephone.jpg" alt="PinePhone"><div class="n">PinePhone</div><div class="m">pinephone</div></div>
+      <div class="dev-item"><img src="devices/pinephonepro.jpg" alt="PinePhone Pro"><div class="n">PinePhone Pro</div><div class="m">pinephonepro</div></div>
+      <div class="dev-item"><img src="devices/pinetab2.jpg" alt="PineTab2"><div class="n">PineTab2</div><div class="m">pinetab2</div></div>
     </div>
 
     <h3 class="sub">In progress</h3>
     <div class="grid">
-      <div class="dev-item"><div class="n">Google Pixel 4a</div><div class="m">sunfish, bramble</div></div>
-      <div class="dev-item"><div class="n">Google Pixel 6a</div><div class="m">bluejay</div></div>
-      <div class="dev-item"><div class="n">Google Pixel 7a</div><div class="m">panther</div></div>
-      <div class="dev-item"><div class="n">Google Pixel Tablet</div><div class="m">tangorpro</div></div>
-      <div class="dev-item"><div class="n">Xiaomi Poco X3 NFC</div><div class="m">surya</div></div>
-      <div class="dev-item"><div class="n">OnePlus 6T</div><div class="m">fajita</div></div>
-      <div class="dev-item"><div class="n">Mecha Comet</div><div class="m">comet</div></div>
+      <div class="dev-item"><img src="devices/pixel4a.jpg" alt="Google Pixel 4a"><div class="n">Google Pixel 4a</div><div class="m">sunfish, bramble</div></div>
+      <div class="dev-item"><img src="devices/pixel6a.jpg" alt="Google Pixel 6a"><div class="n">Google Pixel 6a</div><div class="m">bluejay</div></div>
+      <div class="dev-item"><img src="devices/pixel7a.jpg" alt="Google Pixel 7a"><div class="n">Google Pixel 7a</div><div class="m">panther</div></div>
+      <div class="dev-item"><img src="devices/pixeltablet.jpg" alt="Google Pixel Tablet"><div class="n">Google Pixel Tablet</div><div class="m">tangorpro</div></div>
+      <div class="dev-item"><img src="devices/pocox3.jpg" alt="Xiaomi Poco X3 NFC"><div class="n">Xiaomi Poco X3 NFC</div><div class="m">surya</div></div>
+      <div class="dev-item"><img src="devices/oneplus6t.jpg" alt="OnePlus 6T"><div class="n">OnePlus 6T</div><div class="m">fajita</div></div>
+      <div class="dev-item"><span class="noimg" aria-hidden="true"></span><div class="n">Mecha Comet</div><div class="m">comet</div></div>
     </div>
   </div>
 </section>
@@ -343,12 +348,7 @@ footer a{color:var(--soft)}
   <div class="wrap">
     <div>LuneOS is free software, built by the webOS Ports community.</div>
     <div><a href="https://wiki.webos-internals.org/">webOS Internals</a> — documentation for Palm-era hardware</div>
-    <p class="credits">Device photographs from Wikimedia Commons:
-      <a href="https://commons.wikimedia.org/wiki/File:HP_TouchPad_hand.jpg">HP TouchPad</a> by Ben Miller (CC BY 2.0),
-      <a href="https://commons.wikimedia.org/wiki/File:Pinephone_betaedition.png">PinePhone</a> by ICCCC (CC0),
-      <a href="https://commons.wikimedia.org/wiki/File:BlackBerry%C2%AE_KEY2.png">BlackBerry Key2</a> (CC BY-SA 4.0),
-      <a href="https://commons.wikimedia.org/wiki/File:Google_Pixel_3a_-_2023.jpg">Google Pixel 3a</a> by Noël (CC BY 4.0).
-      Images cropped to fit.</p>
+    <p class="credits">Device images from Wikimedia Commons and Wikipedia, under CC licences — HP TouchPad by Ben Miller (CC BY 2.0), PinePhone by ICCCC (CC0), BlackBerry Key2 (CC BY-SA 4.0), Google Pixel 3a by Noël (CC BY 4.0), Prométhée (CC BY-SA 3.0); RabbitMeow (CC BY-SA 4.0); Google Android (CC BY 2.5); Rohit Thakur (CC BY 3.0); All uploaded by User MartijnBraam (CC BY-SA 4.0); MartijnBraam (CC BY-SA 4.0); LOOOKI (CC BY-SA 4.0); Riski394 (CC BY-SA 4.0). Pixel schematics are CC-licensed SVGs rendered to PNG. Images resized and placed on white.</p>
   </div>
 </footer>
 
