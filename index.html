@@ -1,0 +1,406 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LuneOS — webOS Ports</title>
+<meta name="description" content="LuneOS continues Palm's webOS on current hardware. Open source, community built, with test images for Pixel, PinePhone and more.">
+<link rel="icon" href="luneos-mark.png">
+<meta property="og:title" content="LuneOS — webOS Ports">
+<meta property="og:description" content="LuneOS continues Palm's webOS on current hardware. Open source, community built.">
+<meta property="og:image" content="https://webos-ports.org/luneos-lockup.png">
+<link rel="preload" href="fonts/prelude-regular.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="fonts/prelude-bold.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* Prelude — the webOS system typeface. Licensed; self-hosted. */
+@font-face{font-family:Prelude;src:url(fonts/prelude-light.woff2) format("woff2");font-weight:300;font-style:normal;font-display:swap}
+@font-face{font-family:Prelude;src:url(fonts/prelude-regular.woff2) format("woff2");font-weight:400;font-style:normal;font-display:swap}
+@font-face{font-family:Prelude;src:url(fonts/prelude-bold.woff2) format("woff2");font-weight:700;font-style:normal;font-display:swap}
+@font-face{font-family:Prelude;src:url(fonts/prelude-black.woff2) format("woff2");font-weight:900;font-style:normal;font-display:swap}
+
+:root{
+  --paper:#F4F8FC;
+  --card:#FFFFFF;
+  --ink:#00123A;
+  --soft:#5B6B85;
+  --rule:#DBE4F0;
+  --blue:#1685E8;
+  --blue-deep:#0B5CC0;
+  --blue-pale:#C7E6FE;
+  --blue-wash:#EAF4FE;
+  --sans:Prelude,"Segoe UI",system-ui,-apple-system,sans-serif;
+  --disp:Prelude,"Segoe UI",system-ui,sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{
+  margin:0;background:var(--paper);color:var(--ink);
+  font-family:var(--sans);font-size:17px;line-height:1.65;
+  -webkit-font-smoothing:antialiased;
+}
+img{max-width:100%;display:block}
+a{color:var(--blue-deep);text-decoration:none;border-bottom:1px solid rgba(22,133,232,.32)}
+a:hover{border-bottom-color:var(--blue)}
+a:focus-visible,button:focus-visible{outline:2px solid var(--blue);outline-offset:3px;border-radius:2px}
+.wrap{width:100%;max-width:1120px;margin:0 auto;padding-inline:24px}
+h1,h2,h3{font-family:var(--disp);font-weight:300;line-height:1.06;letter-spacing:-.015em;margin:0}
+
+/* masthead */
+.top{padding-block:24px;border-bottom:1px solid var(--rule)}
+.top .wrap{display:flex;align-items:center;justify-content:space-between;gap:24px;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:13px;border:0}
+.brand img{width:76px;height:76px}
+.brand b{font-family:var(--disp);font-size:21px;font-weight:300;letter-spacing:-.01em;color:var(--ink)}
+.nav{display:flex;gap:26px;flex-wrap:wrap;font-size:15.5px}
+.nav a{color:var(--soft);border:0}
+.nav a:hover{color:var(--ink)}
+
+/* hero */
+.hero{padding-block:62px 88px;position:relative;overflow:hidden}
+.hero::before{
+  content:"";position:absolute;inset:-55% 48% 35% -22%;
+  background:radial-gradient(ellipse at center,rgba(22,133,232,.14),transparent 64%);
+  pointer-events:none;
+}
+.hero .wrap{position:relative;display:grid;grid-template-columns:minmax(0,1.04fr) minmax(0,.96fr);gap:64px;align-items:center}
+.hero h1{font-size:clamp(42px,6.4vw,76px)}
+.lede{font-size:clamp(18px,2.1vw,21px);color:var(--soft);max-width:46ch;margin:22px 0 0}
+.lede strong{color:var(--ink);font-weight:400}
+.acts{display:flex;gap:14px;flex-wrap:wrap;margin-top:34px}
+.btn{font-family:var(--sans);font-size:16px;font-weight:700;padding:13px 23px;border-radius:8px;border:1px solid transparent}
+.btn-a{background:var(--blue);color:#fff;border-color:var(--blue)}
+.btn-a:hover{background:var(--blue-deep);border-color:var(--blue-deep)}
+.btn-b{border-color:var(--rule);color:var(--ink);background:var(--card)}
+.btn-b:hover{border-color:var(--blue)}
+
+/* card stack (webOS card metaphor) — portrait, like app cards on a phone */
+.deck{position:relative;height:300px}
+.card{
+  position:absolute;width:168px;height:224px;border-radius:15px;
+  display:flex;flex-direction:column;overflow:hidden;background:#fff;
+  border:1px solid var(--rule);
+  box-shadow:0 20px 40px -16px rgba(0,40,110,.32);
+}
+.card img{width:100%;height:140px;object-fit:contain;background:#fff;border-bottom:1px solid var(--rule)}
+.card .meta{padding:11px 13px 0}
+.card .dev{font-family:var(--disp);font-size:16.5px;font-weight:400;letter-spacing:-.01em;line-height:1.2}
+.card .code{font-family:var(--mono);font-size:12px;color:var(--soft);margin-top:4px}
+.c1{left:0;top:34px;transform:rotate(-8deg)}
+.c2{left:21%;top:8px;transform:rotate(-3deg);z-index:2}
+.c3{left:42%;top:0;transform:rotate(2.5deg);z-index:3}
+.c4{left:63%;top:22px;transform:rotate(7deg);z-index:4}
+.deck-note{position:absolute;left:0;bottom:-2px;font-family:var(--mono);font-size:12.5px;color:var(--soft)}
+
+/* sections */
+section{padding-block:72px;border-top:1px solid var(--rule)}
+.head{max-width:60ch;margin-bottom:38px}
+.head h2{font-size:clamp(27px,3.5vw,38px)}
+.head p{color:var(--soft);margin:14px 0 0}
+
+.sub{font-family:var(--disp);font-size:21px;font-weight:700;letter-spacing:-.01em;margin:0 0 16px}
+.sub+.grid{margin-bottom:38px}
+.grid{display:grid;gap:14px;grid-template-columns:repeat(auto-fill,minmax(232px,1fr))}
+.dev-item{padding:17px 19px;border:1px solid var(--rule);border-radius:10px;background:var(--card)}
+.dev-item .n{font-weight:700}
+.dev-item .m{font-family:var(--mono);font-size:12.5px;color:var(--soft);margin-top:4px}
+.dev-item .d{font-family:var(--mono);font-size:12.5px;color:var(--blue-deep);margin-top:9px}
+
+.wip{border-left:3px solid var(--blue);padding-left:22px;max-width:70ch}
+.wip li{margin-bottom:18px}
+.wip .n{font-weight:700}
+.wip .s{color:var(--soft);font-size:15.5px}
+ul.bare{list-style:none;padding:0;margin:0}
+
+.rel{display:grid;gap:0;max-width:74ch}
+.rel div{display:grid;grid-template-columns:150px 1fr auto;gap:18px;padding:15px 0;border-bottom:1px solid var(--rule);align-items:baseline}
+.rel .nm{font-family:var(--disp);font-size:20px;font-weight:400}
+.rel .yr{font-family:var(--mono);font-size:13.5px;color:var(--soft)}
+.rel .no{color:var(--soft);font-size:15.5px}
+
+.stack{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(168px,1fr));max-width:900px}
+.stack div{padding:15px 17px;border:1px solid var(--rule);border-radius:10px;background:var(--card)}
+.stack .k{font-family:var(--mono);font-size:12.5px;color:var(--soft)}
+.stack .v{font-weight:700;margin-top:5px}
+
+.links{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(248px,1fr))}
+.lk{display:block;padding:21px 22px;border:1px solid var(--rule);border-radius:12px;background:var(--card);border-bottom-color:var(--rule)}
+.lk:hover{border-color:var(--blue);box-shadow:0 10px 24px -14px rgba(0,40,110,.35)}
+.lk b{font-family:var(--disp);font-size:19px;font-weight:400;display:block;letter-spacing:-.01em;color:var(--ink)}
+.lk span{color:var(--soft);font-size:15.5px;display:block;margin-top:6px}
+
+/* contact form */
+.form{max-width:680px}
+.row{display:grid;gap:18px;grid-template-columns:1fr 1fr}
+.field{margin:0 0 18px}
+.field label{display:block;font-size:15px;color:var(--soft);margin-bottom:7px}
+.field input,.field textarea{
+  width:100%;font:inherit;font-size:16px;color:var(--ink);
+  background:var(--card);border:1px solid var(--rule);border-radius:8px;padding:12px 14px;
+}
+.field textarea{resize:vertical;min-height:132px;line-height:1.6}
+.field input:focus,.field textarea:focus{outline:2px solid var(--blue);outline-offset:1px;border-color:var(--blue)}
+.field input:user-invalid,.field textarea:user-invalid{border-color:#C0553F}
+.hp{position:absolute;left:-9999px;width:1px;height:1px;opacity:0}
+.submit-row{display:flex;align-items:center;gap:18px;flex-wrap:wrap;margin:6px 0 0}
+.form button{cursor:pointer;font-family:var(--sans)}
+.form button[disabled]{opacity:.55;cursor:default}
+.status{font-size:15.5px;color:var(--soft)}
+.status.ok{color:var(--blue-deep)}
+.status.bad{color:#B4432C}
+
+footer{padding-block:44px 64px;border-top:1px solid var(--rule);color:var(--soft);font-size:15px}
+footer .wrap{display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap}
+.credits{flex-basis:100%;margin:22px 0 0;font-size:13.5px;line-height:1.7;color:var(--soft)}
+.credits a{color:var(--soft)}
+footer a{color:var(--soft)}
+
+@media (max-width:900px){
+  .hero .wrap{grid-template-columns:1fr;gap:52px}
+  .deck{height:268px;max-width:430px}
+  .card{width:144px;height:192px}
+  .card img{height:118px}
+  .card .dev{font-size:15.5px}
+  .rel div{grid-template-columns:1fr;gap:3px}
+  .rel .no{grid-row:3}
+}
+@media (max-width:640px){.row{grid-template-columns:1fr;gap:0}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="/"><img src="luneos-mark.png" alt=""><b>LuneOS</b></a>
+    <nav class="nav">
+      <a href="#devices">Devices</a>
+      <a href="#releases">Releases</a>
+      <a href="https://wiki.webos-ports.org/">Wiki</a>
+      <a href="https://github.com/webOS-ports">Source</a>
+    </nav>
+  </div>
+</header>
+
+<div class="hero">
+  <div class="wrap">
+    <div>
+      <h1>webOS never stopped.</h1>
+      <p class="lede">LuneOS carries Palm's operating system onto current hardware — the card
+      multitasking, the gestures, Luna itself — rebuilt on an open stack.
+      <strong>Test images are still being built — the most recent in September 2026.</strong></p>
+      <div class="acts">
+        <a class="btn btn-a" href="https://github.com/webOS-ports/luneos-testing/releases">Get a test image</a>
+        <a class="btn btn-b" href="https://wiki.webos-ports.org/wiki/Main_Page">Read the wiki</a>
+      </div>
+    </div>
+
+    <div class="deck" aria-label="Devices running LuneOS">
+      <div class="card c1"><img src="devices/touchpad.jpg" alt="HP TouchPad"><div class="meta"><div class="dev">HP TouchPad</div><div class="code">tenderloin</div></div></div>
+      <div class="card c2"><img src="devices/pinephone.jpg" alt="PinePhone"><div class="meta"><div class="dev">PinePhone</div><div class="code">pinephone</div></div></div>
+      <div class="card c3"><img src="devices/key2.jpg" alt="BlackBerry Key2"><div class="meta"><div class="dev">BlackBerry Key2</div><div class="code">athena</div></div></div>
+      <div class="card c4"><img src="devices/pixel3a.jpg" alt="Google Pixel 3a"><div class="meta"><div class="dev">Google Pixel 3a</div><div class="code">sargo</div></div></div>
+      <div class="deck-note">four of fifteen devices with working ports</div>
+    </div>
+
+  </div>
+</div>
+
+<section id="devices">
+  <div class="wrap">
+    <div class="head">
+      <h2>Devices</h2>
+      <p>Test images for every device are published together in the
+      <a href="https://github.com/webOS-ports/luneos-testing/releases">luneos-testing releases</a>.
+      Flashing replaces the operating system on the phone, so read the device page on the
+      wiki first.</p>
+    </div>
+
+    <h3 class="sub">Working</h3>
+    <div class="grid">
+      <div class="dev-item"><div class="n">Zinwa Q25</div><div class="m">q25</div></div>
+      <div class="dev-item"><div class="n">MinimalPhone</div><div class="m">mp01</div></div>
+      <div class="dev-item"><div class="n">GreenTouch MindSet</div><div class="m">mindphone</div></div>
+      <div class="dev-item"><div class="n">FuriLabs</div><div class="m">radon</div></div>
+      <div class="dev-item"><div class="n">Samsung Galaxy A3 (2015)</div><div class="m">a3-2015</div></div>
+      <div class="dev-item"><div class="n">Google Pixel 3a</div><div class="m">sargo</div></div>
+      <div class="dev-item"><div class="n">LG Nexus 5</div><div class="m">hammerhead</div></div>
+      <div class="dev-item"><div class="n">Xiaomi Mi A1</div><div class="m">tissot</div></div>
+      <div class="dev-item"><div class="n">Xiaomi Redmi 5</div><div class="m">rosy</div></div>
+      <div class="dev-item"><div class="n">Xiaomi Redmi Note 4</div><div class="m">mido</div></div>
+      <div class="dev-item"><div class="n">HP TouchPad</div><div class="m">tenderloin</div></div>
+      <div class="dev-item"><div class="n">BlackBerry Key2</div><div class="m">athena</div></div>
+      <div class="dev-item"><div class="n">PinePhone</div><div class="m">pinephone</div></div>
+      <div class="dev-item"><div class="n">PinePhone Pro</div><div class="m">pinephonepro</div></div>
+      <div class="dev-item"><div class="n">PineTab2</div><div class="m">pinetab2</div></div>
+    </div>
+
+    <h3 class="sub">In progress</h3>
+    <div class="grid">
+      <div class="dev-item"><div class="n">Google Pixel 4a</div><div class="m">sunfish, bramble</div></div>
+      <div class="dev-item"><div class="n">Google Pixel 6a</div><div class="m">bluejay</div></div>
+      <div class="dev-item"><div class="n">Google Pixel 7a</div><div class="m">panther</div></div>
+      <div class="dev-item"><div class="n">Google Pixel Tablet</div><div class="m">tangorpro</div></div>
+      <div class="dev-item"><div class="n">Xiaomi Poco X3 NFC</div><div class="m">surya</div></div>
+      <div class="dev-item"><div class="n">OnePlus 6T</div><div class="m">fajita</div></div>
+      <div class="dev-item"><div class="n">Mecha Comet</div><div class="m">comet</div></div>
+    </div>
+  </div>
+</section>
+
+<section id="releases">
+  <div class="wrap">
+    <div class="head">
+      <h2>Releases</h2>
+      <p>Stable releases are named after coffee. Between them, test images ship
+      continuously from the build infrastructure.</p>
+    </div>
+    <div class="rel">
+      <div><span class="nm">Eiskaffee</span><span class="no">Twenty-ninth release</span><span class="yr">Feb 2024</span></div>
+      <div><span class="nm">Eggnog Latte</span><span class="no">Twenty-eighth release</span><span class="yr">Oct 2019</span></div>
+      <div><span class="nm">Doppio</span><span class="no">Twenty-seventh release</span><span class="yr">Nov 2018</span></div>
+      <div><span class="nm">Decaf</span><span class="no">Twenty-sixth release</span><span class="yr">Oct 2017</span></div>
+    </div>
+  </div>
+</section>
+
+<section id="built">
+  <div class="wrap">
+    <div class="head">
+      <h2>What it is built on</h2>
+      <p>LuneOS is assembled with Yocto, combining Palm and LG's open webOS components
+      with a current Linux userspace.</p>
+    </div>
+    <div class="stack">
+      <div><div class="k">device base</div><div class="v">Halium 16.0, or mainline Linux</div></div>
+      <div><div class="k">components</div><div class="v">webOS OSE 2.25</div></div>
+      <div><div class="k">toolkit</div><div class="v">Qt 6.12</div></div>
+      <div><div class="k">browser engine</div><div class="v">Chromium 151</div></div>
+      <div><div class="k">build system</div><div class="v">Yocto 6.0</div></div>
+    </div>
+  </div>
+</section>
+
+<section id="community">
+  <div class="wrap">
+    <div class="head">
+      <h2>Take part</h2>
+      <p>The project is built by a small group of people in their own time. New device
+      ports usually start with someone owning the hardware and getting curious.</p>
+    </div>
+    <div class="links">
+      <a class="lk" href="https://wiki.webos-ports.org/wiki/Main_Page"><b>Wiki</b><span>Build instructions, device pages and project documentation.</span></a>
+      <a class="lk" href="https://github.com/webOS-ports"><b>Source</b><span>Every component, build recipe and device tree on GitHub.</span></a>
+      <a class="lk" href="https://web.libera.chat/#webos-ports"><b>IRC</b><span>#webos-ports on Libera.Chat, where most development talk happens.</span></a>
+      <a class="lk" href="https://t.me/luneos_dev"><b>Telegram</b><span>The LuneOS Developer Community channel.</span></a>
+      <a class="lk" href="https://forums.weboslives.eu/"><b>Forums</b><span>Ask questions and follow testing threads at webOS Lives.</span></a>
+      <a class="lk" href="https://pivotce.com/"><b>PivotCE</b><span>Release write-ups and news from the wider webOS community.</span></a>
+    </div>
+  </div>
+</section>
+
+<section id="contact">
+  <div class="wrap">
+    <div class="head">
+      <h2>Send a message</h2>
+      <p>For anything that does not fit a chat room — hardware offers, press questions,
+      or a port you would like to work on. It reaches the same people.</p>
+    </div>
+
+    <form class="form" id="contact-form" method="POST" novalidate>
+      <input type="hidden" name="access_key" value="b5cd6678-8e89-45ad-b379-5dbe55d8f09a">
+      <input type="hidden" name="subject" value="Message from webos-ports.org">
+      <input type="hidden" name="from_name" value="webos-ports.org">
+      <input type="checkbox" name="botcheck" class="hp" tabindex="-1" autocomplete="off">
+
+      <div class="row">
+        <p class="field">
+          <label for="f-name">Your name</label>
+          <input id="f-name" name="name" type="text" required autocomplete="name">
+        </p>
+        <p class="field">
+          <label for="f-mail">Email</label>
+          <input id="f-mail" name="email" type="email" required autocomplete="email">
+        </p>
+      </div>
+      <p class="field">
+        <label for="f-msg">Message</label>
+        <textarea id="f-msg" name="message" rows="6" required></textarea>
+      </p>
+      <p class="submit-row">
+        <button class="btn btn-a" type="submit">Send message</button>
+        <span class="status" id="form-status" role="status" aria-live="polite"></span>
+      </p>
+    </form>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div>LuneOS is free software, built by the webOS Ports community.</div>
+    <div><a href="https://wiki.webos-internals.org/">webOS Internals</a> — documentation for Palm-era hardware</div>
+    <p class="credits">Device photographs from Wikimedia Commons:
+      <a href="https://commons.wikimedia.org/wiki/File:HP_TouchPad_hand.jpg">HP TouchPad</a> by Ben Miller (CC BY 2.0),
+      <a href="https://commons.wikimedia.org/wiki/File:Pinephone_betaedition.png">PinePhone</a> by ICCCC (CC0),
+      <a href="https://commons.wikimedia.org/wiki/File:BlackBerry%C2%AE_KEY2.png">BlackBerry Key2</a> (CC BY-SA 4.0),
+      <a href="https://commons.wikimedia.org/wiki/File:Google_Pixel_3a_-_2023.jpg">Google Pixel 3a</a> by Noël (CC BY 4.0).
+      Images cropped to fit.</p>
+  </div>
+</footer>
+
+<script>
+(function(){
+  var form = document.getElementById('contact-form');
+  var status = document.getElementById('form-status');
+  if (!form) return;
+  var btn = form.querySelector('button[type=submit]');
+
+  form.addEventListener('submit', function(e){
+    e.preventDefault();
+
+    if (!form.checkValidity()) {
+      form.reportValidity();
+      return;
+    }
+
+    var key = form.elements['access_key'].value;
+    if (key.indexOf('YOUR-') === 0) {
+      status.textContent = 'This form is not connected yet.';
+      status.className = 'status bad';
+      return;
+    }
+
+    btn.disabled = true;
+    status.textContent = 'Sending…';
+    status.className = 'status';
+
+    fetch('https://api.web3forms.com/submit', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json', 'Accept':'application/json'},
+      body: JSON.stringify(Object.fromEntries(new FormData(form)))
+    })
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      if (d.success) {
+        form.reset();
+        status.textContent = 'Message sent. We read everything, replies can take a while.';
+        status.className = 'status ok';
+      } else {
+        throw new Error(d.message || 'rejected');
+      }
+    })
+    .catch(function(){
+      status.textContent = 'That did not send. Try IRC or Telegram above.';
+      status.className = 'status bad';
+    })
+    .finally(function(){ btn.disabled = false; });
+  });
+})();
+</script>
+
+</body>
+</html>
