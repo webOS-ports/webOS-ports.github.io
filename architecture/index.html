@@ -1,0 +1,904 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Architecture — LuneOS</title>
+<meta name="description" content="How LuneOS is built: the layered stack, legacy webOS and webOS OSE compared, Halium and mainline hardware adaptation, boot flows and the Yocto layers.">
+<link rel="icon" href="/luneos-mark.png">
+<meta property="og:title" content="LuneOS Architecture">
+<meta property="og:description" content="The layered stack, Halium and mainline targets, boot flows and the Yocto layers behind LuneOS.">
+<meta property="og:image" content="https://webos-ports.org/luneos-lockup.png">
+<link rel="preload" href="/fonts/prelude-regular.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/fonts/prelude-bold.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* Prelude — the webOS system typeface. Licensed; self-hosted. */
+@font-face{font-family:Prelude;src:url(/fonts/prelude-light.woff2) format("woff2");font-weight:300;font-style:normal;font-display:swap}
+@font-face{font-family:Prelude;src:url(/fonts/prelude-regular.woff2) format("woff2");font-weight:400;font-style:normal;font-display:swap}
+@font-face{font-family:Prelude;src:url(/fonts/prelude-bold.woff2) format("woff2");font-weight:700;font-style:normal;font-display:swap}
+@font-face{font-family:Prelude;src:url(/fonts/prelude-black.woff2) format("woff2");font-weight:900;font-style:normal;font-display:swap}
+
+:root{
+  --paper:#F4F8FC;
+  --card:#FFFFFF;
+  --ink:#00123A;
+  --soft:#5B6B85;
+  --rule:#DBE4F0;
+  --blue:#1685E8;
+  --blue-deep:#0B5CC0;
+  --blue-pale:#C7E6FE;
+  --blue-wash:#EAF4FE;
+  --sans:Prelude,"Segoe UI",system-ui,-apple-system,sans-serif;
+  --disp:Prelude,"Segoe UI",system-ui,sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+
+  /* architecture page: surfaces reuse the site palette */
+  --surface:var(--card);
+  --sunk:var(--blue-wash);
+  --muted:var(--soft);
+  --line:var(--rule);
+  --line-soft:#E7EDF6;
+
+  /* the two hardware families */
+  --halium:#0E7C68; --halium-tint:#DEF1EC;
+  --mainline:var(--blue-deep); --mainline-tint:#E2EFFD;
+
+  /* where a component's source comes from */
+  --p-ose:#A32E68; --p-fork:#6E4BB8; --p-lune:#9A6B16; --p-palm:#6E6858; --p-up:#5B6B85;
+
+  --ok:#1C7F49; --warn:#9A6B16; --off:#7C8597;
+  --band-app:#1F5FB0; --band-fw:#6A48B0; --band-svc:#A8336C; --band-base:#16808A; --band-hw:#5B6B85; --band-k:#7D8595;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%;scroll-behavior:smooth}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--sans);font-size:17px;line-height:1.65;-webkit-font-smoothing:antialiased}
+img{max-width:100%;display:block}
+a{color:var(--blue-deep);text-decoration:none;border-bottom:1px solid rgba(22,133,232,.32)}
+a:hover{border-bottom-color:var(--blue)}
+a:focus-visible,button:focus-visible,input:focus-visible{outline:2px solid var(--blue);outline-offset:3px;border-radius:2px}
+.wrap{width:100%;max-width:1120px;margin:0 auto;padding-inline:24px}
+h1,h2,h3{font-family:var(--disp);font-weight:300;line-height:1.08;letter-spacing:-.015em;margin:0}
+p{margin:0}
+code,.mono{font-family:var(--mono);font-size:.84em}
+
+/* masthead — same as the home page */
+.top{padding-block:24px;border-bottom:1px solid var(--rule)}
+.top .wrap{display:flex;align-items:center;justify-content:space-between;gap:24px;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:13px;border:0}
+.brand img{width:76px;height:76px}
+.brand b{font-family:var(--disp);font-size:21px;font-weight:300;letter-spacing:-.01em;color:var(--ink)}
+.nav{display:flex;gap:26px;flex-wrap:wrap;font-size:15.5px}
+.nav a{color:var(--soft);border:0}
+.nav a:hover{color:var(--ink)}
+.nav a[aria-current="page"]{color:var(--ink);border-bottom:2px solid var(--blue)}
+
+/* page intro */
+.intro{padding-block:56px 42px}
+.intro h1{font-size:clamp(38px,5.6vw,64px)}
+.lede{font-size:clamp(17px,2vw,20px);color:var(--soft);max-width:62ch;margin:22px 0 0}
+.lede strong{color:var(--ink);font-weight:400}
+.facts{display:flex;flex-wrap:wrap;gap:14px 30px;margin:32px 0 0;padding:0;list-style:none}
+.facts li{display:flex;flex-direction:column;gap:3px}
+.facts b{font-family:var(--mono);font-size:15px;font-weight:500;color:var(--ink)}
+.facts span{font-family:var(--mono);font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--soft)}
+.toc{display:flex;flex-wrap:wrap;gap:8px 20px;margin-top:30px;font-size:15.5px}
+.toc a{color:var(--soft);border:0}
+.toc a:hover{color:var(--ink)}
+
+section.block{padding-block:62px;border-top:1px solid var(--rule);display:grid;gap:24px}
+.head{max-width:66ch;display:grid;gap:12px}
+.head h2{font-size:clamp(26px,3.4vw,36px)}
+.head p{color:var(--soft)}
+.eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--soft)}
+.prose{max-width:66ch}
+figure{margin:0;display:grid;gap:14px}
+figcaption{font-size:15.5px;color:var(--soft);max-width:80ch}
+figcaption b{color:var(--ink);font-weight:700}
+.count{font-size:14.5px;color:var(--soft)}
+#tcount,.filters .count{font-family:var(--mono);font-size:13px}
+.callout{border-left:3px solid var(--blue);padding:4px 0 4px 20px;font-size:16px}
+
+/* legend + segmented controls */
+.legend{display:flex;flex-wrap:wrap;gap:9px 20px;align-items:center;font-size:14.5px;color:var(--soft)}
+.legend .k{display:inline-flex;align-items:center;gap:7px}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--c);flex:none}
+.layers-tools{display:flex;flex-wrap:wrap;justify-content:space-between;gap:14px;align-items:center}
+.seg{display:inline-flex;border:1px solid var(--rule);border-radius:999px;padding:3px;background:var(--card)}
+.seg button{font-family:var(--sans);font-size:14.5px;font-weight:700;border:0;background:transparent;color:var(--soft);padding:7px 16px;border-radius:999px;cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--blue);color:#fff}
+
+/* the layered stack */
+.layers{display:grid;gap:7px;background:var(--card);border:1px solid var(--rule);border-radius:12px;padding:11px}
+.band{display:grid;grid-template-columns:132px 1fr;gap:7px}
+.band-label{background:var(--b);color:#fff;border-radius:9px;padding:13px;font-family:var(--disp);font-size:16px;font-weight:700;line-height:1.14;display:flex;flex-direction:column;justify-content:center;gap:5px;letter-spacing:-.01em}
+.band-label small{font-family:var(--mono);font-size:11px;font-weight:400;opacity:.88;letter-spacing:.01em;line-height:1.3}
+.cells{display:grid;grid-template-columns:repeat(auto-fit,minmax(176px,1fr));gap:7px}
+.cell{min-width:0;background:color-mix(in srgb,var(--b) 7%,var(--card));border:1px solid color-mix(in srgb,var(--b) 20%,var(--card));border-radius:9px;padding:10px 11px 11px}
+.cell h4{margin:0 0 7px;font-family:var(--mono);font-size:11px;font-weight:500;letter-spacing:.07em;text-transform:uppercase;color:color-mix(in srgb,var(--b) 72%,var(--ink))}
+.chips{display:flex;flex-wrap:wrap;gap:5px}
+.chip{display:inline-flex;align-items:flex-start;gap:6px;font-size:14px;line-height:1.25;padding:4px 9px 4px 8px;border-radius:6px;background:var(--card);border:1px solid var(--line-soft);overflow-wrap:anywhere;max-width:100%}
+.chip::before{margin-top:5px}
+.chip::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--c,var(--p-up));flex:none}
+.o-ose{--c:var(--p-ose)} .o-fork{--c:var(--p-fork)} .o-lune{--c:var(--p-lune)} .o-palm{--c:var(--p-palm)} .o-up{--c:var(--p-up)}
+.split{display:grid;grid-template-columns:1fr 1fr;gap:7px}
+.side{border-radius:9px;padding:10px 11px 11px;border:1.5px solid var(--s);background:var(--st);transition:opacity .2s}
+.side h4{margin:0 0 7px;font-family:var(--mono);font-size:11px;font-weight:500;letter-spacing:.09em;text-transform:uppercase;color:var(--s)}
+.side.h{--s:var(--halium);--st:var(--halium-tint)}
+.side.m{--s:var(--mainline);--st:var(--mainline-tint)}
+.layers[data-show="halium"] .side.m,.layers[data-show="mainline"] .side.h{opacity:.2}
+.b-app{--b:var(--band-app)} .b-fw{--b:var(--band-fw)} .b-svc{--b:var(--band-svc)} .b-base{--b:var(--band-base)} .b-hw{--b:var(--band-hw)} .b-k{--b:var(--band-k)}
+
+/* tables */
+.scroll{overflow-x:auto;border:1px solid var(--rule);border-radius:12px;background:var(--card)}
+table{border-collapse:collapse;width:100%;font-size:15.5px}
+th,td{padding:11px 14px;text-align:left;vertical-align:top;border-bottom:1px solid var(--line-soft)}
+thead th{font-family:var(--mono);font-size:11.5px;font-weight:500;letter-spacing:.09em;text-transform:uppercase;color:var(--soft);background:var(--blue-wash);position:sticky;top:0}
+tbody tr:last-child td{border-bottom:0}
+td.rowlab{font-weight:700;white-space:nowrap}
+.conv{min-width:900px}
+.conv td.h{border-left:3px solid var(--halium)}
+.conv td.m{border-right:3px solid var(--mainline)}
+.conv td.c{background:var(--blue-wash);text-align:center}
+.conv th.h{color:var(--halium)} .conv th.m{color:var(--mainline)} .conv th.c{text-align:center}
+.legacy-t{min-width:1000px}
+.legacy-t td:nth-child(2){background:color-mix(in srgb,var(--p-palm) 7%,var(--card))}
+.legacy-t th.pl{color:var(--p-palm)} .legacy-t th.po{color:var(--p-ose)} .legacy-t th.pn{color:var(--blue-deep)}
+
+/* figures */
+.fig-box{background:var(--card);border:1px solid var(--rule);border-radius:12px;padding:16px;overflow-x:auto}
+.fig-box svg{display:block;width:100%;height:auto;min-width:780px;color:var(--ink);font-family:var(--sans)}
+svg .t{fill:currentColor;font-size:12px}
+svg .ts{fill:var(--soft);font-size:10.5px}
+svg .tb{fill:currentColor;font-size:13px;font-weight:700}
+svg .tm{fill:currentColor;font-family:var(--mono);font-size:11px}
+svg .tl{fill:var(--soft);font-size:10.5px;font-style:italic}
+svg .box{fill:var(--card);stroke:var(--rule);stroke-width:1.2}
+svg .sunk{fill:var(--blue-wash);stroke:none}
+svg .edge{stroke:currentColor;stroke-width:1.3;fill:none}
+svg .dash{stroke-dasharray:5 4}
+svg .hal{stroke:var(--halium)} svg .hal-f{fill:var(--halium-tint);stroke:var(--halium);stroke-width:1.4}
+svg .ml{stroke:var(--mainline)} svg .ml-f{fill:var(--mainline-tint);stroke:var(--mainline);stroke-width:1.4}
+svg .lune-f{fill:color-mix(in srgb,var(--p-lune) 10%,var(--card));stroke:var(--p-lune);stroke-width:1.4}
+svg .ose-f{fill:color-mix(in srgb,var(--p-ose) 8%,var(--card));stroke:var(--p-ose);stroke-width:1.2}
+svg .th{fill:var(--halium);font-weight:700;font-size:11.5px;letter-spacing:.09em}
+svg .tmn{fill:var(--mainline);font-weight:700;font-size:11.5px;letter-spacing:.09em}
+svg .tmoon{fill:var(--p-lune);font-weight:700;font-size:11.5px;letter-spacing:.09em}
+svg .prio{fill:var(--blue-deep);font-family:var(--mono);font-size:10.5px;font-weight:500}
+
+/* boot lanes */
+.boot{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+.lane{background:var(--card);border:1px solid var(--rule);border-top:4px solid var(--s);border-radius:12px;padding:20px 20px 8px}
+.lane.h{--s:var(--halium)} .lane.m{--s:var(--mainline)} .lane.c{--s:var(--blue)} .lane.l{--s:var(--p-palm)}
+.lane h3{color:var(--s);font-size:21px;font-weight:700;margin-bottom:14px}
+.steps{list-style:none;margin:0;padding:0;counter-reset:s}
+.steps li{counter-increment:s;display:grid;grid-template-columns:30px 1fr;gap:12px;padding-bottom:17px;position:relative}
+.steps li::before{content:counter(s);font-family:var(--mono);font-size:12.5px;line-height:26px;width:26px;height:26px;text-align:center;border-radius:50%;border:1.5px solid var(--s);color:var(--s);background:var(--card);position:relative;z-index:1}
+.steps li:not(:last-child)::after{content:"";position:absolute;left:12.5px;top:26px;bottom:0;width:1.5px;background:var(--rule)}
+.steps b{font-weight:700;display:block}
+.steps p{font-size:15px;color:var(--soft)}
+.steps code{color:var(--ink)}
+.lane.c,.lane.l{grid-column:1/-1}
+.lane.c .steps li::after,.lane.l .steps li::after{display:none}
+.lane.c .steps,.lane.l .steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(262px,1fr));column-gap:24px}
+
+/* target matrix */
+.filters{display:flex;flex-wrap:wrap;gap:12px;align-items:center}
+.filters label{font-size:15px;color:var(--soft);display:inline-flex;align-items:center;gap:7px}
+.targets{min-width:920px}
+.pill{display:inline-flex;align-items:center;font-family:var(--mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;padding:4px 9px;border-radius:999px;white-space:nowrap}
+.st-active{background:color-mix(in srgb,var(--ok) 13%,var(--card));color:var(--ok)}
+.st-wip{background:color-mix(in srgb,var(--warn) 15%,var(--card));color:var(--warn)}
+.st-builds{background:color-mix(in srgb,var(--p-fork) 12%,var(--card));color:var(--p-fork)}
+.st-legacy{background:var(--blue-wash);color:var(--off)}
+.st-unclear{border:1px dashed var(--off);color:var(--off)}
+.fam{font-size:14.5px;font-weight:700;white-space:nowrap}
+.fam::before{content:"";display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:7px;background:var(--c)}
+.fam.h{--c:var(--halium);color:var(--halium)} .fam.m{--c:var(--mainline);color:var(--mainline)}
+td.num{font-variant-numeric:tabular-nums}
+
+footer{padding-block:44px 64px;border-top:1px solid var(--rule);color:var(--soft);font-size:15px}
+footer .wrap{display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap}
+footer a{color:var(--soft)}
+
+@media (max-width:900px){
+  .band{grid-template-columns:1fr}
+  .band-label{flex-direction:row;align-items:baseline;justify-content:space-between;padding:9px 11px}
+  .split,.boot{grid-template-columns:1fr}
+}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="/"><img src="/luneos-mark.png" alt=""><b>LuneOS</b></a>
+    <nav class="nav">
+      <a href="/#devices">Devices</a>
+      <a href="/#releases">Releases</a>
+      <a href="/architecture/" aria-current="page">Architecture</a>
+      <a href="https://wiki.webos-ports.org/">Wiki</a>
+      <a href="https://github.com/webOS-ports">Source</a>
+    </nav>
+  </div>
+</header>
+
+<div class="wrap">
+<div class="intro">
+  <div class="eyebrow">Architecture</div>
+  <h1>How LuneOS is built.</h1>
+  <p class="lede">LuneOS runs the webOS user experience on phones and tablets, using webOS OSE's core
+  and the webOS Ports card shell. It supports two kinds of device: <strong>Halium targets</strong> reuse the
+  Android vendor stack through libhybris and binder, and <strong>mainline targets</strong> run upstream Linux
+  drivers on Qualcomm, Allwinner, Rockchip, Broadcom and NXP silicon. Everything above the hardware-adaptation layer is shared. HP webOS 3.0.5 on the TouchPad is
+  shown alongside for comparison.</p>
+  <ul class="facts">
+    <li><span>Yocto</span><b>6.0 wrynose</b></li>
+    <li><span>Distro</span><b>LuneOS 1.0 “Espressino”</b></li>
+    <li><span>UI toolkit</span><b>Qt 6.12 · Wayland 1.24</b></li>
+    <li><span>Web engine</span><b>Chromium 151 webruntime</b></li>
+    <li><span>Init / libc</span><b>systemd 257 · glibc 2.43</b></li>
+    <li><span>Halium base</span><b>Halium 16 GSI</b></li>
+  </ul>
+  <nav class="toc" aria-label="Sections">
+    <a href="#stack">Layered stack</a><a href="#ose">Relation to webOS OSE</a><a href="#legacy">Legacy webOS</a><a href="#features">Per-device composition</a><a href="#converge">Hardware adaptation</a><a href="#halium">Inside Halium</a><a href="#boot">Boot flow</a><a href="#launch">App launch</a><a href="#layers">Yocto layers</a><a href="#images">Images &amp; install</a><a href="#targets">Targets</a>
+  </nav>
+</div>
+
+<section class="block" id="stack">
+  <div class="head">
+    <div class="eyebrow">Figure 1</div>
+    <h2>The layered stack</h2>
+    <p class="prose">The bands follow webOS OSE’s architecture diagram, from Core Applications down to BSP and Kernel. The bottom two bands split by target family, and the toggle dims whichever family you aren’t looking at. Each dot shows where a component’s source comes from.</p>
+  </div>
+  <div class="layers-tools">
+    <div class="legend" aria-label="Provenance legend">
+      <span class="k"><span class="dot" style="--c:var(--p-ose)"></span>webOS OSE (unchanged)</span>
+      <span class="k"><span class="dot" style="--c:var(--p-fork)"></span>OSE, webOS-ports fork</span>
+      <span class="k"><span class="dot" style="--c:var(--p-lune)"></span>LuneOS / webOS-ports original</span>
+      <span class="k"><span class="dot" style="--c:var(--p-palm)"></span>Palm Open webOS legacy</span>
+      <span class="k"><span class="dot" style="--c:var(--p-up)"></span>Upstream open source</span>
+    </div>
+    <div class="seg" role="group" aria-label="Highlight target family">
+      <button type="button" id="show-both" data-show="both" aria-pressed="true">Both</button>
+      <button type="button" id="show-halium" data-show="halium" aria-pressed="false">Halium</button>
+      <button type="button" id="show-mainline" data-show="mainline" aria-pressed="false">Mainline</button>
+    </div>
+  </div>
+
+  <figure>
+  <div class="layers" id="stackfig" data-show="both" role="img" aria-label="LuneOS layered architecture: applications, frameworks, services and base components are shared; hardware adaptation and kernel differ between Halium and mainline targets.">
+    <div class="band b-app">
+      <div class="band-label">Core Applications<small>what the user touches</small></div>
+      <div class="cells">
+        <div class="cell"><h4>System UI · card shell</h4><div class="chips"><span class="chip o-lune">Card view</span><span class="chip o-lune">Launcher</span><span class="chip o-lune">Just Type</span><span class="chip o-lune">Status bar</span><span class="chip o-lune">Notifications</span><span class="chip o-lune">Lock screen</span><span class="chip o-lune">Dock mode</span></div></div>
+        <div class="cell"><h4>System apps · QML</h4><div class="chips"><span class="chip o-lune">Settings</span><span class="chip o-lune">First Use</span><span class="chip o-lune">Phone</span><span class="chip o-lune">Camera</span><span class="chip o-lune">Terminal</span><span class="chip o-up">Messwerk</span></div></div>
+        <div class="cell"><h4>PIM &amp; tools · Enyo 2</h4><div class="chips"><span class="chip o-lune">Contacts</span><span class="chip o-lune">Messaging</span><span class="chip o-lune">Memos</span><span class="chip o-lune">Photos</span><span class="chip o-lune">Maps</span><span class="chip o-lune">Files</span><span class="chip o-lune">Preware</span></div></div>
+        <div class="cell"><h4>Legacy core apps · Enyo 1</h4><div class="chips"><span class="chip o-palm">Calendar</span><span class="chip o-palm">Email</span><span class="chip o-palm">Clock</span><span class="chip o-palm">Accounts</span></div></div>
+        <div class="cell"><h4>Web &amp; media</h4><div class="chips"><span class="chip o-lune">Atlas browser</span><span class="chip o-ose">Enact Browser</span><span class="chip o-ose">Media Gallery</span><span class="chip o-ose">Video Player</span><span class="chip o-ose">Video Call</span></div></div>
+        <div class="cell"><h4>Guest apps</h4><div class="chips"><span class="chip o-up">Android apps (Waydroid)</span><span class="chip o-palm">PDK / SDL games</span></div></div>
+      </div>
+    </div>
+
+    <div class="band b-fw">
+      <div class="band-label">Application Framework<small>runtimes &amp; toolkits</small></div>
+      <div class="cells">
+        <div class="cell"><h4>Web runtime</h4><div class="chips"><span class="chip o-fork">WebAppMgr (WAM)</span><span class="chip o-fork">webruntime · Chromium 151</span></div></div>
+        <div class="cell"><h4>Web frameworks</h4><div class="chips"><span class="chip o-palm">Enyo 1</span><span class="chip o-lune">Mojo</span><span class="chip o-up">Enyo 2</span><span class="chip o-ose">Enact 4.5</span><span class="chip o-up">Cordova</span></div></div>
+        <div class="cell"><h4>Qt / QML</h4><div class="chips"><span class="chip o-up">Qt 6.12</span><span class="chip o-lune">luneos-components</span><span class="chip o-fork">qml-webos-framework</span><span class="chip o-lune">libwebos-application</span></div></div>
+        <div class="cell"><h4>JS services</h4><div class="chips"><span class="chip o-up">Node.js 22</span><span class="chip o-ose">mojoservicelauncher</span><span class="chip o-ose">nodejs-module-webos-*</span></div></div>
+        <div class="cell"><h4>Compatibility</h4><div class="chips"><span class="chip o-lune">pdk-luneos</span><span class="chip o-up">qemu-user (armel)</span><span class="chip o-up">Waydroid</span></div></div>
+        <div class="cell"><h4>Input method</h4><div class="chips"><span class="chip o-fork">maliit-framework-webos</span><span class="chip o-lune">webos-keyboard</span></div></div>
+      </div>
+    </div>
+
+    <div class="band b-svc">
+      <div class="band-label">Managers &amp; Services<small>on the Luna bus (LS2)</small></div>
+      <div class="cells">
+        <div class="cell"><h4>App lifecycle</h4><div class="chips"><span class="chip o-fork">SAM</span><span class="chip o-lune">luna-appmanager</span><span class="chip o-fork">appinstalld2</span><span class="chip o-fork">activitymanager</span><span class="chip o-ose">memorymanager</span></div></div>
+        <div class="cell"><h4>Display &amp; shell</h4><div class="chips"><span class="chip o-fork">luna-surfacemanager</span><span class="chip o-lune">luna-next-cardshell</span><span class="chip o-lune">luna-displaymanager</span><span class="chip o-lune">luna-authmanager</span></div></div>
+        <div class="cell"><h4>Media &amp; audio</h4><div class="chips"><span class="chip o-fork">audiod</span><span class="chip o-ose">audiofocusmanager</span><span class="chip o-ose">uMediaServer</span><span class="chip o-fork">camera service</span><span class="chip o-lune">mediaindexer</span></div></div>
+        <div class="cell"><h4>Telephony &amp; connectivity</h4><div class="chips"><span class="chip o-lune">webos-telephonyd</span><span class="chip o-fork">webos-connman-adapter</span><span class="chip o-ose">bluetooth2 + hfp</span><span class="chip o-fork">location</span><span class="chip o-lune">NFC · VPN · eSIM adapters</span></div></div>
+        <div class="cell"><h4>Data</h4><div class="chips"><span class="chip o-fork">DB8 (com.palm.db)</span><span class="chip o-ose">filecache</span><span class="chip o-lune">keymanager</span><span class="chip o-ose">configurator · configd</span><span class="chip o-lune">backupagent</span></div></div>
+        <div class="cell"><h4>System</h4><div class="chips"><span class="chip o-fork">luna-sysservice</span><span class="chip o-ose">settingsservice</span><span class="chip o-fork">notificationmgr</span><span class="chip o-fork">sleepd</span><span class="chip o-ose">power2</span><span class="chip o-palm">storaged</span><span class="chip o-ose">bootd</span><span class="chip o-lune">kbdscroll</span><span class="chip o-lune">remote-wakelock</span></div></div>
+        <div class="cell"><h4>Security &amp; biometrics</h4><div class="chips"><span class="chip o-lune">fingerprint adapter</span><span class="chip o-lune">luneos-faced</span><span class="chip o-palm">certmgrd</span></div></div>
+        <div class="cell"><h4>org.webosports.service.*</h4><div class="chips"><span class="chip o-lune">update</span><span class="chip o-lune">devmode</span><span class="chip o-lune">ipkg</span><span class="chip o-lune">torch</span><span class="chip o-lune">eink</span><span class="chip o-lune">killswitch</span><span class="chip o-lune">messaging</span><span class="chip o-lune">cdav</span></div></div>
+      </div>
+    </div>
+
+    <div class="band b-base">
+      <div class="band-label">Base Components<small>libraries &amp; daemons</small></div>
+      <div class="cells">
+        <div class="cell"><h4>Bus</h4><div class="chips"><span class="chip o-fork">luna-service2 · ls-hubd</span></div></div>
+        <div class="cell"><h4>Display</h4><div class="chips"><span class="chip o-up">Wayland 1.24</span><span class="chip o-up">QtWayland</span><span class="chip o-fork">qtwayland-webos</span><span class="chip o-ose">webos-wayland-extensions</span></div></div>
+        <div class="cell"><h4>Media</h4><div class="chips"><span class="chip o-up">GStreamer 1.28</span><span class="chip o-ose">g-media-pipeline</span><span class="chip o-up">PulseAudio 17</span><span class="chip o-ose">palm-policy module</span></div></div>
+        <div class="cell"><h4>Connectivity</h4><div class="chips"><span class="chip o-up">oFono 2.19</span><span class="chip o-up">voicecall</span><span class="chip o-up">ConnMan 2.0</span><span class="chip o-up">BlueZ 5</span><span class="chip o-up">geoclue</span></div></div>
+        <div class="cell"><h4>HAL</h4><div class="chips"><span class="chip o-fork">nyx-lib</span><span class="chip o-fork">nyx-modules</span><span class="chip o-up">sensorfw</span></div></div>
+        <div class="cell"><h4>Data &amp; logs</h4><div class="chips"><span class="chip o-up">LevelDB</span><span class="chip o-fork">PmLog</span><span class="chip o-up">journald</span></div></div>
+        <div class="cell"><h4>Boot &amp; base libs</h4><div class="chips"><span class="chip o-up">systemd 257</span><span class="chip o-fork">webos-initscripts</span><span class="chip o-up">glibc 2.43</span></div></div>
+      </div>
+    </div>
+
+    <div class="band b-hw">
+      <div class="band-label">Hardware Adaptation<small>BSP · where the families split</small></div>
+      <div class="split">
+        <div class="side h"><h4>Halium · Android vendor stack</h4><div class="chips"><span class="chip o-fork">libhybris</span><span class="chip o-up">libgbinder</span><span class="chip o-lune">android-system (LXC)</span><span class="chip o-up">Halium 16 GSI</span><span class="chip o-up">hwcomposer QPA</span><span class="chip o-up">pulseaudio-modules-droid</span><span class="chip o-up">ofono-binder-plugin</span><span class="chip o-up">gst-droid · droidmedia</span><span class="chip o-up">bluebinder</span><span class="chip o-lune">nyx-modules-hybris</span><span class="chip o-lune">biomd</span><span class="chip o-up">nfcd-binder</span><span class="chip o-lune">wlan-dynamic-start</span><span class="chip o-lune">luneos-device-config</span></div></div>
+        <div class="side m"><h4>Mainline · upstream drivers</h4><div class="chips"><span class="chip o-up">Mesa (freedreno · panfrost · lima · vc4)</span><span class="chip o-up">Qt eglfs KMS/GBM</span><span class="chip o-up">ALSA UCM</span><span class="chip o-up">oFono QMI + qrtr · rmtfs</span><span class="chip o-up">eg25-manager</span><span class="chip o-up">libcamera 0.7.2</span><span class="chip o-up">sensorfw iio adaptor</span><span class="chip o-fork">nyx-modules + nyx.conf</span><span class="chip o-up">softpipe fallback</span><span class="chip o-up">device firmware</span></div></div>
+      </div>
+    </div>
+
+    <div class="band b-k">
+      <div class="band-label">Kernel &amp; Boot<small>per device</small></div>
+      <div class="split">
+        <div class="side h"><h4>Android kernel</h4><div class="chips"><span class="chip o-up">GKI android14-6.1 (tier A)</span><span class="chip o-up">vendor kernel 3.4–4.19 (tier B)</span><span class="chip o-up">binder</span><span class="chip o-up">ABL / aboot</span><span class="chip o-lune">boot.img + init_boot</span><span class="chip o-up">initramfs-tools-halium</span></div></div>
+        <div class="side m"><h4>Mainline Linux</h4><div class="chips"><span class="chip o-up">msm8953-mainline 6.9</span><span class="chip o-up">msm8916-mainline 7.3-rc2</span><span class="chip o-up">megi orange-pi 7.2</span><span class="chip o-up">linux-comet (i.MX8MP)</span><span class="chip o-up">linux-raspberrypi</span><span class="chip o-up">U-Boot · systemd-boot · lk2nd</span><span class="chip o-up">TF-A · crust</span><span class="chip o-up">initramfs-simple</span></div></div>
+      </div>
+    </div>
+  </div>
+  <figcaption><b>Shared above, split below.</b> The same packages are built for both families. The machine include <code>meta-android-halium.inc</code> adds the <code>halium</code> override, which swaps EGL/GLES to libhybris, pulls in the <code>LIBHYBRIS_RDEPENDS</code> set, and gives packages a separate <code>-halium</code> package arch. What each individual device gets on top is no longer written per machine: since the September packagegroup rework it comes from <code>MACHINE_FEATURES</code> (see below).</figcaption>
+  </figure>
+</section>
+
+<!-- ============ OSE ============ -->
+<section class="block" id="ose">
+  <div class="head">
+    <div class="eyebrow">Heritage</div>
+    <h2>How LuneOS relates to webOS OSE</h2>
+    <p class="prose">OSE was designed for a TV or signage device with one full-screen app at a time. LuneOS keeps OSE’s core (LS2, SAM, WAM, LSM, DB8, Nyx, audiod), changes some parts, and adds what a phone needs: cards, telephony, sensors and Android hardware.</p>
+  </div>
+  <div class="scroll">
+  <table>
+    <thead><tr><th>OSE block</th><th>In LuneOS</th><th>Why</th></tr></thead>
+    <tbody>
+      <tr><td class="rowlab">Home · Launchpad · Status Bar</td><td><code>luna-next-cardshell</code> QML, loaded as LSM’s <code>WebOSCompositor</code> import</td><td>webOS card multitasking, gestures, dock mode and lock screen. OSE’s placeholder compositor import is removed at build time.</td></tr>
+      <tr><td class="rowlab">SAM</td><td>SAM, plus <code>luna-appmanager</code> serving <code>com.palm.applicationManager</code></td><td>Legacy Enyo 1, Mojo and PDK apps still call the Palm-era API names.</td></tr>
+      <tr><td class="rowlab">WAM + Chromium</td><td>WAM fork (clang build) on <code>webos-ports/chromium151</code></td><td>Replaces the older QtWebEngine-based WebAppMgr. <code>qtwebengine</code> is blacklisted in the distro. Touch input is enabled.</td></tr>
+      <tr><td class="rowlab">Settings (Enact)</td><td><code>settings-qml</code></td><td>Phone-sized settings, with panels for telephony, NFC, fingerprint and so on.</td></tr>
+      <tr><td class="rowlab">Nyx HAL</td><td>nyx-modules with a per-machine <code>.cmake</code>, plus <code>nyx-modules-hybris</code></td><td>Battery, haptics, LEDs and keys come from Android HALs on Halium and from sysfs on mainline.</td></tr>
+      <tr><td class="rowlab">Connectivity</td><td>OSE connman adapter and Bluetooth, plus <code>webos-telephonyd</code> on oFono</td><td>OSE has no cellular stack. Voice calls use Sailfish’s voicecall.</td></tr>
+      <tr><td class="rowlab">Media</td><td>OSE uMS and g-media-pipeline, plus gst-droid or libcamera, plus sensorfw</td><td>Cameras and sensors on phones and tablets.</td></tr>
+      <tr><td class="rowlab">BSP (Raspberry Pi 4)</td><td>meta-smartphone, meta-pine64-luneos, meta-rpi-luneos</td><td>Two hardware-adaptation families and 30+ machines.</td></tr>
+      <tr><td class="rowlab">Not in OSE</td><td>Enyo 1, Mojo, mojomail, PDK shim, Preware, novacomd, keymanager</td><td>Compatibility with Palm and HP webOS 1.x–3.x apps.</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+
+<!-- ============ LEGACY ============ -->
+<section class="block" id="legacy">
+  <div class="head">
+    <div class="eyebrow">Heritage · Figure 2</div>
+    <h2>Legacy webOS side by side</h2>
+    <p class="prose">Rows are the same layers as Figure 1. The legacy column is HP webOS 3.0.5, read directly from the TouchPad AT&amp;T rootfs (build 86, Dec 2011). Where the Pre 2 on webOS 2.2.4 differs, the table notes it. In legacy webOS, one binary, <code>LunaSysMgr</code>, was the compositor, card manager, app manager and much of the system service layer. LuneOS still serves many of LunaSysMgr’s Palm bus names, but from separate <code>luna-*</code> services.</p>
+  </div>
+  <div class="scroll">
+  <table class="legacy-t">
+    <thead><tr><th>Layer</th><th class="pl">HP webOS 3.0.5 · TouchPad</th><th class="po">webOS OSE</th><th class="pn">LuneOS</th></tr></thead>
+    <tbody>
+      <tr><td class="rowlab">Shell &amp; compositor</td><td><code>LunaSysMgr</code>, a single Qt process handling cards, launcher, notifications, dock, keys and display. No Wayland.</td><td>LSM with QML System UI (Home, Launchpad, Status Bar)</td><td><code>luna-surfacemanager</code> + <code>luna-next-cardshell</code>: the webOS card UI rebuilt as a Wayland compositor</td></tr>
+      <tr><td class="rowlab">UI toolkit &amp; GPU</td><td>Qt 4.8.0 (4.6.1 on 2.2.4) rendering straight to vendor EGL/GLES (Adreno on TouchPad, PowerVR SGX on Pre 2)</td><td>Qt 6, QtWayland, Mesa</td><td>Qt 6.12, QtWayland; libhybris over vendor EGL, or Mesa</td></tr>
+      <tr><td class="rowlab">App lifecycle</td><td>Built into LunaSysMgr: <code>com.palm.applicationManager</code>, <code>com.palm.appinstaller</code></td><td>SAM, appinstalld2</td><td>SAM, plus <code>luna-appmanager</code> serving the same Palm names</td></tr>
+      <tr><td class="rowlab">System bus names</td><td>LunaSysMgr also owns <code>com.palm.display</code>, <code>com.palm.systemmanager</code>, <code>com.palm.vibrate</code>, <code>com.palm.keys</code></td><td><code>com.webos.*</code> names</td><td>Split out: <code>luna-displaymanager</code>, <code>luna-authmanager</code>, <code>luna-haptics</code></td></tr>
+      <tr><td class="rowlab">Web runtime</td><td><code>WebAppMgr</code>, a forked child of LunaSysMgr running <b>all</b> web apps in one WebKit (<code>libWebKitLuna</code>) process</td><td>WAM + Chromium, one renderer per app</td><td>WAM + Chromium 151, one renderer per app</td></tr>
+      <tr><td class="rowlab">Browser</td><td><code>BrowserServer</code>, a separate WebKit server process</td><td>Enact Browser</td><td>Atlas on WAM</td></tr>
+      <tr><td class="rowlab">App frameworks</td><td>Mojo, Enyo 1.0, <code>foundations</code> libraries</td><td>Enact</td><td>Enyo 1 and Mojo (compatibility), Enyo 2, Enact, QML</td></tr>
+      <tr><td class="rowlab">JS services</td><td>Node.js v0.4.12 (v0.2.3 on 2.2.4) with <code>palmbus.node</code>, <code>fork_server.js</code></td><td>Node.js, webos-service</td><td>Node.js 22, <code>mojoservicelauncher</code>, <code>nodejs-module-webos-*</code></td></tr>
+      <tr><td class="rowlab">Native apps</td><td>PDK: SDL 1.2, <code>libpdl</code>, GLES, started by LunaSysMgr’s <code>IpcServer</code>, with “direct rendering” for full-screen apps</td><td>Native Qt/QML apps</td><td>Qt 6 apps; PDK apps through <code>pdk-luneos</code> under qemu-user (armel)</td></tr>
+      <tr><td class="rowlab">Bus</td><td><code>ls-hubd_private</code> + <code>ls-hubd_public</code> (two hubs, <code>palm://</code>)</td><td>LS2 (luna-service2)</td><td>luna-service2, one <code>ls-hubd</code></td></tr>
+      <tr><td class="rowlab">Data</td><td><code>mojodb-luna</code> and <code>tempdb</code> on an encrypted LVM volume (<code>cryptofs</code>), <code>filecache</code></td><td>DB8 on LevelDB</td><td>DB8 on LevelDB, still named <code>com.palm.db</code></td></tr>
+      <tr><td class="rowlab">Hardware abstraction</td><td><code>libhid*</code> plugins (touch panel, keypad, accelerometer, compass, light, proximity), <code>hidd</code>, <code>libhal</code></td><td>Nyx</td><td>nyx-modules, plus <code>nyx-modules-hybris</code> on Halium</td></tr>
+      <tr><td class="rowlab">Telephony &amp; network</td><td><code>TelephonyInterfaceLayer</code>, <code>PmWanDaemon</code>, <code>qmuxd</code>, <code>PmNetConfigManager</code>, <code>PmWiFiService</code></td><td>connman adapter; no cellular</td><td><code>webos-telephonyd</code> on oFono; connman adapter</td></tr>
+      <tr><td class="rowlab">Bluetooth</td><td>Proprietary <code>PmBtStack</code> / <code>PmBtEngine</code></td><td>BlueZ</td><td>BlueZ 5 (with <code>bluebinder</code> on Halium)</td></tr>
+      <tr><td class="rowlab">Media</td><td><code>mediaserver</code>, GStreamer 0.10, PulseAudio 0.9.22, <code>audiod</code></td><td>uMediaServer, GStreamer 1.x, PulseAudio, audiod</td><td>uMediaServer, GStreamer 1.28, PulseAudio 17, audiod</td></tr>
+      <tr><td class="rowlab">Init</td><td>upstart 0.3.8 jobs in <code>/etc/event.d</code></td><td>systemd, bootd</td><td>systemd 257, bootd</td></tr>
+      <tr><td class="rowlab">Kernel &amp; storage</td><td><code>2.6.35-palm-tenderloin</code> (2.6.32 on Pre 2). Read-only ext3 root plus LVM <code>store</code> volumes (var, cryptodb, filecache, media)</td><td>Raspberry Pi 4 kernel</td><td>Android GKI or vendor kernel, or mainline 6.9–7.2. Rootfs in userdata or on a wic partition</td></tr>
+      <tr><td class="rowlab">Updates &amp; developer access</td><td><code>UpdateDaemon</code> (OMA DM), <code>novacomd</code>, <code>ipkg</code></td><td>SW Updater, devmode</td><td><code>org.webosports.service.update</code>, devmode, <code>novacomd</code>, opkg</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <figure>
+  <div class="fig-box">
+  <svg viewBox="0 0 1000 400" role="img" aria-label="Process model: in HP webOS 3.0.5 LunaSysMgr forks a single WebAppMgr process that hosts every web app in one WebKit instance and shares rendered buffers over PIpc shared memory; in LuneOS a Wayland compositor receives surfaces from WAM-managed per-app Chromium renderers and native clients, with SAM launching over LS2.">
+    <defs>
+      <marker id="ap" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="currentColor"/></marker>
+    </defs>
+    <!-- legacy panel -->
+    <text x="20" y="24" class="tb" style="fill:var(--p-palm)">HP webOS 3.0.5</text>
+    <text x="150" y="24" class="ts">one UI process forks one web process</text>
+    <rect x="20" y="40" width="460" height="92" rx="8" class="box" style="stroke:var(--p-palm);stroke-width:1.6"/>
+    <text x="36" y="64" class="tb">LunaSysMgr</text><text x="130" y="64" class="ts">Qt 4.8 · UI process</text>
+    <text x="36" y="86" class="t">cards · launcher · notifications · dock · keys</text>
+    <text x="36" y="104" class="t">applicationManager · display · systemmanager</text>
+    <text x="36" y="122" class="ts">draws straight to vendor EGL / framebuffer</text>
+
+    <line x1="130" y1="132" x2="130" y2="178" class="edge" marker-end="url(#ap)"/><text x="138" y="160" class="tl">fork()</text>
+    <line x1="220" y1="178" x2="220" y2="134" class="edge" marker-end="url(#ap)"/><text x="228" y="152" class="tl">PIpc · shm buffers</text>
+    <rect x="20" y="180" width="300" height="130" rx="8" class="box"/>
+    <text x="36" y="204" class="tb">WebAppMgr</text><text x="126" y="204" class="ts">same binary · libWebKitLuna</text>
+    <rect x="36" y="220" width="84" height="40" rx="4" class="sunk"/><text x="78" y="245" class="t" text-anchor="middle">app A</text>
+    <rect x="130" y="220" width="84" height="40" rx="4" class="sunk"/><text x="172" y="245" class="t" text-anchor="middle">app B</text>
+    <rect x="224" y="220" width="84" height="40" rx="4" class="sunk"/><text x="266" y="245" class="t" text-anchor="middle">app C</text>
+    <text x="36" y="290" class="ts">every Mojo / Enyo app shares this process</text>
+    <text x="36" y="304" class="ts">one crash takes all cards down (webKitDied)</text>
+
+    <rect x="340" y="180" width="140" height="58" rx="8" class="box"/><text x="352" y="204" class="tb">PDK app</text><text x="352" y="222" class="ts">SDL 1.2 · direct render</text>
+    <path d="M430 132 V178" class="edge" marker-end="url(#ap)"/><text x="424" y="170" class="tl" text-anchor="end">launchNativeProcess</text>
+    <rect x="340" y="252" width="140" height="58" rx="8" class="box"/><text x="352" y="276" class="tb">BrowserServer</text><text x="352" y="294" class="ts">browser’s WebKit</text>
+
+    <rect x="20" y="332" width="460" height="48" rx="8" class="sunk"/>
+    <text x="36" y="354" class="t">ls-hubd private + public · mojodb-luna · Node 0.4 services</text>
+    <text x="36" y="371" class="ts">upstart 0.3.8 · kernel 2.6.35 · libhid</text>
+
+    <!-- divider -->
+    <line x1="500" y1="20" x2="500" y2="385" stroke="var(--line)" stroke-width="1"/>
+
+    <!-- luneos panel -->
+    <text x="520" y="24" class="tb" style="fill:var(--p-lune)">LuneOS</text>
+    <text x="586" y="24" class="ts">compositor, launcher and renderers are separate processes</text>
+    <rect x="520" y="40" width="460" height="92" rx="8" class="lune-f"/>
+    <text x="536" y="64" class="tb">luna-surfacemanager</text><text x="690" y="64" class="ts">Qt 6.12 · Wayland compositor</text>
+    <text x="536" y="86" class="t">luna-next-cardshell QML: cards · launcher · notifications</text>
+    <text x="536" y="104" class="t">Palm bus names moved to luna-appmanager, -displaymanager …</text>
+    <text x="536" y="122" class="ts">EGL via libhybris (Halium) or Mesa KMS/GBM (mainline)</text>
+
+    <rect x="672" y="180" width="130" height="58" rx="8" class="ose-f"/><text x="686" y="204" class="tb">SAM</text><text x="686" y="222" class="ts">launch over LS2</text>
+    <line x1="672" y1="209" x2="652" y2="209" class="edge" marker-end="url(#ap)"/>
+    <rect x="520" y="180" width="130" height="58" rx="8" class="box"/><text x="534" y="204" class="tb">WAM</text><text x="534" y="222" class="ts">daemon · Chromium 151</text>
+    <line x1="562" y1="238" x2="562" y2="254" class="edge" marker-end="url(#ap)"/>
+    <rect x="520" y="256" width="84" height="40" rx="4" class="sunk"/><text x="562" y="281" class="t" text-anchor="middle">renderer A</text>
+    <rect x="615" y="256" width="84" height="40" rx="4" class="sunk"/><text x="657" y="281" class="t" text-anchor="middle">renderer B</text>
+    <rect x="710" y="256" width="84" height="40" rx="4" class="sunk"/><text x="752" y="281" class="t" text-anchor="middle">renderer C</text>
+    <text x="520" y="314" class="ts">a crashing web app loses only its own card</text>
+    <rect x="822" y="180" width="158" height="58" rx="8" class="box"/><text x="836" y="204" class="tb">Qt / PDK app</text><text x="836" y="222" class="ts">native Wayland client</text>
+    <path d="M960 180 V134" class="edge" marker-end="url(#ap)"/>
+    <path d="M794 276 H812 V134" class="edge" marker-end="url(#ap)"/>
+    <text x="806" y="160" class="tl" text-anchor="end">wl_surface</text><text x="954" y="160" class="tl" text-anchor="end">wl_surface</text>
+
+    <rect x="520" y="332" width="460" height="48" rx="8" class="sunk"/>
+    <text x="536" y="354" class="t">one ls-hubd · DB8 (LevelDB) · Node 22 services</text>
+    <text x="536" y="371" class="ts">systemd 257 · Android or mainline kernel · nyx-modules</text>
+  </svg>
+  </div>
+  <figcaption><b>From one process to many.</b> On the TouchPad, LunaSysMgr forked a <code>WebAppMgr</code> child from the same binary. That child hosted every web app in one WebKit instance and passed rendered frames back over <code>libLunaSysMgrIpc</code> shared memory. LunaSysMgr watched for <code>webKitDied</code> because one crash took down every card. LuneOS uses the OSE model instead. Every app is a Wayland client, each web app gets its own Chromium renderer, and lifecycle has moved from the shell into SAM.</figcaption>
+  </figure>
+</section>
+
+
+<!-- ============ FEATURES ============ -->
+<section class="block" id="features">
+  <div class="head">
+    <div class="eyebrow">Per-device composition</div>
+    <h2>What a device gets, and who decides</h2>
+    <p class="prose">Two separate mechanisms decide what lands in an image. The <code>halium</code> machine override decides whether the Android vendor stack is built at all. <code>MACHINE_FEATURES</code> decide which hardware stacks ride along, so a machine config declares what the device has rather than listing packages. This replaced the per-machine <code>RDEPENDS:append:&lt;machine&gt;</code> lines in <code>packagegroup-luneos-extended.bb</code>.</p>
+  </div>
+  <div class="scroll">
+  <table style="min-width:860px">
+    <thead><tr><th>Declared on the machine</th><th>Pulls in</th><th>Who sets it</th></tr></thead>
+    <tbody>
+      <tr><td class="rowlab"><code>halium</code> override</td><td><code>LIBHYBRIS_RDEPENDS</code>: libhybris, android-system, lxc, android-property-service, android-tools, qbootctl, hwcomposer QPA, pulseaudio-modules-droid(-hidl), gst-droid, bluebinder, nyx-modules-hybris, wlan-dynamic-start, wlan-suspend-mode</td><td>Not a feature — set by <code>meta-android-halium.inc</code> for every Halium machine</td></tr>
+      <tr><td class="rowlab"><code>camera-rear</code> · <code>camera-front</code> · <code>camera-swivel</code></td><td>Camera app, <code>v4l-utils</code>, and on mainline <code>libcamera</code> + <code>libcamera-gst</code>. A front or swivel camera also pulls <code>luneos-faced</code></td><td>30 of 32 phones declare their camera topology; it replaced blanket camera dependencies</td></tr>
+      <tr><td class="rowlab"><code>fingerprint</code></td><td><code>biomd</code> + <code>webos-fingerprint-adapter</code></td><td>19 machines, mostly Halium arm64 phones</td></tr>
+      <tr><td class="rowlab"><code>nfc</code></td><td><code>nfcd</code>, <code>nfcd-tools</code>, <code>nfcd-binder-plugin</code>, <code>webos-nfc-adapter</code></td><td>19 machines. Deliberately absent where the hardware lacks it, or where there is no Android container to reach the binder NFC HAL</td></tr>
+      <tr><td class="rowlab"><code>esim</code></td><td><code>lpac</code>, <code>luneos-esim-adapter</code>, a zbar GStreamer plugin for QR activation</td><td>The Pixels and <code>halium-arm64</code></td></tr>
+      <tr><td class="rowlab"><code>keyboard-qwerty</code> · <code>keyboard-t9</code> · <code>keyboard-touch</code> · <code>trackpad</code></td><td>Hardware-keyboard support: maliit switches to <code>Maliit::Hardware</code>, the on-screen keyboard stays down, and <code>kbdscroll</code> turns key-surface or trackpad gestures into scrolling</td><td>KEY2, MP01, Q25, the three Titans, MindPhone (T9)</td></tr>
+      <tr><td class="rowlab"><code>killswitch</code></td><td><code>org.webosports.service.killswitch</code></td><td>FuriPhone FLX1s, PinePhone, PinePhone Pro</td></tr>
+      <tr><td class="rowlab"><code>wifi</code></td><td><code>wireless-regdb-static</code>, <code>cfg80211-regdb-reload</code></td><td>Every phone</td></tr>
+      <tr><td class="rowlab"><code>phone</code></td><td>oFono, <code>webos-telephonyd</code>, voicecall and the phone app</td><td>Every cellular device</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p class="count prose">E Ink is the exception that proves the rule: there is no <code>eink</code> feature, and the MP01 pulls <code>org.webosports.service.eink</code> through <code>MACHINE_EXTRA_RRECOMMENDS</code> instead. Waydroid, the Qualcomm modem helpers and a few QEMU bits are also still per-machine lists.</p>
+</section>
+
+<!-- ============ CONVERGENCE ============ -->
+<section class="block" id="converge">
+  <div class="head">
+    <div class="eyebrow">Figure 3</div>
+    <h2>Hardware adaptation, subsystem by subsystem</h2>
+    <p class="prose">Each subsystem reaches one shared LuneOS consumer in the middle column. The Halium path goes through Android HALs and the mainline path through kernel drivers. Services above this layer don’t know which path is in use.</p>
+  </div>
+  <div class="scroll">
+  <table class="conv">
+    <thead><tr><th>Subsystem</th><th class="h">Halium path</th><th class="c">Shared consumer</th><th class="m">Mainline path</th></tr></thead>
+    <tbody>
+      <tr><td class="rowlab">Graphics</td><td class="h">Vendor EGL/GLES loaded by <b>libhybris</b> · <code>qt6-qpa-hwcomposer-plugin</code> · hybris EGL server buffer in qtwayland (dmabuf off) · <code>LUNEOS_ANDROID_EGL</code> names the driver where the vendor does not</td><td class="c">luna-surfacemanager<br>Wayland clients</td><td class="m">Mesa (freedreno, panfrost, lima, vc4) · Qt <code>eglfs</code> with <code>kms gbm</code> · dmabuf · softpipe fallback where the board has no GPU driver</td></tr>
+      <tr><td class="rowlab">Audio</td><td class="h"><code>pulseaudio-modules-droid</code> (+hidl) → audio HAL · <code>droid-audio-config-gen</code></td><td class="c">PulseAudio + palm-policy<br>audiod</td><td class="m">ALSA UCM profiles (msm8953, PinePhone Pro, RK817) · <code>alsa-state</code></td></tr>
+      <tr><td class="rowlab">Telephony</td><td class="h"><code>ofono-binder-plugin</code> + <code>libgbinder-radio</code> → radio HAL · rilmodem/qmimodem disabled</td><td class="c">oFono 2.19<br>webos-telephonyd</td><td class="m">QMI/MBIM via <code>libqrtr-glib</code> · <code>rmtfs</code> <code>qrtr</code> <code>rpmsgexport</code> · <code>eg25-manager</code> on PinePhone</td></tr>
+      <tr><td class="rowlab">Camera</td><td class="h"><code>gst-droid</code> + <code>droidmedia</code> → camera HAL</td><td class="c">GStreamer<br>camera service</td><td class="m"><code>libcamera</code> 0.7.2 + <code>libcamera-gst</code> · V4L2</td></tr>
+      <tr><td class="rowlab">Sensors</td><td class="h"><code>sensorfw</code> built with <code>autohybris binder</code> → sensors HAL</td><td class="c">sensorfw<br>qtsensors plugin</td><td class="m">sensorfw <code>iiosensorsadaptor</code> · IIO drivers</td></tr>
+      <tr><td class="rowlab">Bluetooth</td><td class="h"><code>bluebinder</code> bridges the BT HAL to a virtual HCI</td><td class="c">BlueZ 5<br>bluetooth2</td><td class="m">Kernel HCI drivers · <code>bes2600</code>, <code>brcmfmac</code> firmware</td></tr>
+      <tr><td class="rowlab">Platform HAL</td><td class="h"><code>nyx-modules-hybris</code> (libhybris, libsuspend, libgbinder) overrides individual modules; the LED module probes the Android lights HAL</td><td class="c">nyx-lib<br>sleepd · displaymanager</td><td class="m">The same nyx modules. Device paths come from <code>/etc/nyx.conf</code>, written at boot by generator <code>30-nyx-conf</code></td></tr>
+      <tr><td class="rowlab">Biometrics · NFC</td><td class="h"><code>biomd</code> → fingerprint HAL · <code>nfcd-binder-plugin</code></td><td class="c">fingerprint adapter<br>webos-nfc-adapter</td><td class="m">No fingerprint path · neard (NFC)</td></tr>
+      <tr><td class="rowlab">Android apps</td><td class="h">Waydroid (halium-arm/arm64, *-halium)</td><td class="c">Waydroid container</td><td class="m">Waydroid (Pine64, Raspberry Pi) with binderfs</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<!-- ============ HALIUM DETAIL ============ -->
+<section class="block" id="halium">
+  <div class="head">
+    <div class="eyebrow">Figure 4</div>
+    <h2>Inside a Halium target</h2>
+    <p class="prose">A Halium device runs two userspaces on one Android kernel. LuneOS is the glibc host. Android’s <code>/system</code> and the device’s <code>/vendor</code> run in an LXC container started by <code>android-system</code>. Host code reaches vendor code in two ways: libhybris loads the vendor libraries into the host process, and libgbinder calls the HAL services over binder.</p>
+  </div>
+  <figure>
+  <div class="fig-box">
+  <svg viewBox="0 0 1000 470" role="img" aria-label="On Halium, LuneOS host services reach Android vendor code either in-process through libhybris or over binder IPC through libgbinder to HAL services inside an LXC container, all on one Android kernel.">
+    <defs>
+      <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="currentColor"/></marker>
+      <marker id="ahh" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--halium)"/></marker>
+    </defs>
+    <!-- host region -->
+    <rect x="20" y="20" width="560" height="330" rx="10" class="lune-f" style="stroke-width:1"/>
+    <text x="36" y="44" class="tmoon">LUNEOS HOST · GLIBC USERSPACE</text>
+    <text x="36" y="60" class="ts">consumer</text><text x="212" y="60" class="ts">Halium adapter</text><text x="440" y="60" class="ts">bridge library</text>
+    <!-- rows -->
+    <g>
+      <rect x="36" y="68" width="150" height="34" rx="5" class="box"/><text x="111" y="90" class="t" text-anchor="middle">surfacemanager · WAM</text>
+      <rect x="212" y="68" width="170" height="34" rx="5" class="box"/><text x="297" y="90" class="t" text-anchor="middle">hwcomposer QPA · EGL</text>
+      <rect x="36" y="113" width="150" height="34" rx="5" class="box"/><text x="111" y="135" class="t" text-anchor="middle">PulseAudio</text>
+      <rect x="212" y="113" width="170" height="34" rx="5" class="box"/><text x="297" y="135" class="t" text-anchor="middle">modules-droid</text>
+      <rect x="36" y="158" width="150" height="34" rx="5" class="box"/><text x="111" y="180" class="t" text-anchor="middle">GStreamer camera</text>
+      <rect x="212" y="158" width="170" height="34" rx="5" class="box"/><text x="297" y="180" class="t" text-anchor="middle">gst-droid · droidmedia</text>
+      <rect x="36" y="213" width="150" height="34" rx="5" class="box"/><text x="111" y="235" class="t" text-anchor="middle">oFono</text>
+      <rect x="212" y="213" width="170" height="34" rx="5" class="box"/><text x="297" y="235" class="t" text-anchor="middle">ofono-binder-plugin</text>
+      <rect x="36" y="258" width="150" height="34" rx="5" class="box"/><text x="111" y="280" class="t" text-anchor="middle">sensorfw · nyx</text>
+      <rect x="212" y="258" width="170" height="34" rx="5" class="box"/><text x="297" y="280" class="t" text-anchor="middle">hybris adaptor · nyx-hybris</text>
+      <rect x="36" y="303" width="150" height="34" rx="5" class="box"/><text x="111" y="325" class="t" text-anchor="middle">BlueZ · fingerprint · NFC</text>
+      <rect x="212" y="303" width="170" height="34" rx="5" class="box"/><text x="297" y="325" class="t" text-anchor="middle">bluebinder · biomd · nfcd</text>
+      <g class="edge"><line x1="186" y1="85" x2="210" y2="85"/><line x1="186" y1="130" x2="210" y2="130"/><line x1="186" y1="175" x2="210" y2="175"/><line x1="186" y1="230" x2="210" y2="230"/><line x1="186" y1="275" x2="210" y2="275"/><line x1="186" y1="320" x2="210" y2="320"/></g>
+      <g class="edge" marker-end="url(#ah)"><line x1="382" y1="85" x2="438" y2="100"/><line x1="382" y1="130" x2="438" y2="130"/><line x1="382" y1="175" x2="438" y2="160"/><line x1="382" y1="230" x2="438" y2="250"/><line x1="382" y1="275" x2="438" y2="272"/><line x1="382" y1="320" x2="438" y2="294"/></g>
+    </g>
+    <rect x="440" y="72" width="124" height="116" rx="6" class="hal-f"/><text x="502" y="124" class="tb" text-anchor="middle">libhybris</text><text x="502" y="142" class="ts" text-anchor="middle">bionic linker</text><text x="502" y="156" class="ts" text-anchor="middle">in-process</text>
+    <rect x="440" y="222" width="124" height="96" rx="6" class="hal-f"/><text x="502" y="266" class="tb" text-anchor="middle">libgbinder</text><text x="502" y="284" class="ts" text-anchor="middle">binder client</text>
+    <!-- container -->
+    <rect x="640" y="20" width="340" height="330" rx="10" class="hal-f" style="stroke-dasharray:6 4"/>
+    <text x="656" y="44" class="th">ANDROID LXC CONTAINER</text>
+    <rect x="656" y="60" width="308" height="56" rx="6" class="box"/><text x="670" y="82" class="tb">/vendor</text><text x="670" y="102" class="ts">device blobs: EGL/GLES, gralloc, HWC, codecs</text>
+    <rect x="656" y="128" width="308" height="56" rx="6" class="box"/><text x="670" y="150" class="tb">/system · Halium 16 GSI</text><text x="670" y="170" class="ts">init · property service · (hw)servicemanager</text>
+    <rect x="656" y="196" width="308" height="84" rx="6" class="box"/><text x="670" y="218" class="tb">Vendor HAL services</text><text x="670" y="238" class="ts">composer · audio · radio · camera</text><text x="670" y="254" class="ts">sensors · bluetooth · biometrics · nfc</text><text x="670" y="270" class="ts">power · lights · vibrator</text>
+    <rect x="656" y="292" width="308" height="44" rx="6" class="sunk"/><text x="670" y="312" class="tm">mount-android.sh · mount-apexes.py</text><text x="670" y="328" class="tm">start-android-hals.sh</text>
+    <!-- bridges to container -->
+    <line x1="564" y1="100" x2="654" y2="88" class="edge hal" marker-end="url(#ahh)"/><text x="602" y="84" class="tl" text-anchor="middle">dlopen</text>
+    <line x1="564" y1="270" x2="654" y2="240" class="edge hal" marker-end="url(#ahh)"/><text x="604" y="244" class="tl" text-anchor="middle">binder IPC</text>
+    <line x1="564" y1="160" x2="654" y2="216" class="edge hal dash" marker-end="url(#ahh)"/><text x="600" y="206" class="tl" text-anchor="middle">via vendor libs</text>
+    <!-- kernel -->
+    <rect x="20" y="390" width="960" height="60" rx="8" class="sunk"/>
+    <text x="36" y="414" class="tb">Android kernel</text>
+    <text x="36" y="434" class="ts">GKI android14-6.1 (Pixel 6a/7/Tablet, MP01, Q25) or device vendor kernel 3.4–4.19 · binder · vendor drivers &amp; modules</text>
+    <line x1="810" y1="350" x2="810" y2="388" class="edge" marker-end="url(#ah)"/><text x="818" y="374" class="tl">/dev/*binder, ioctl</text>
+    <line x1="300" y1="350" x2="300" y2="388" class="edge" marker-end="url(#ah)"/><text x="308" y="374" class="tl">evdev · sysfs · wlan module · binder</text>
+  </svg>
+  </div>
+  <figcaption><b>Two bridges.</b> Graphics, audio and camera load vendor <code>.so</code> files into LuneOS processes through libhybris. Radio, sensors, Bluetooth, biometrics and NFC talk to HAL services over binder through libgbinder. <code>luna-surfacemanager</code> starts only after Android is up (<code>surface-manager-daemon-after-android.conf</code>). Current targets use the generic Halium 16 GSI as <code>/system</code> on top of the device’s own <code>/vendor</code>. Halium’s charger UI is stopped during start-up because it holds DRM master, which the compositor needs.</figcaption>
+  </figure>
+</section>
+
+<!-- ============ BOOT ============ -->
+<section class="block" id="boot">
+  <div class="head">
+    <div class="eyebrow">Figure 5</div>
+    <h2>Boot flow</h2>
+    <p class="prose">The two families boot differently until the initramfs runs <code>switch_root</code> into systemd. After that they share one unit graph. On Halium, <code>android-system.service</code> is required by <code>basic.target</code>, and the graphics stack waits until Android reports its HALs are running. There is no <code>android-boot-complete</code> target; readiness is checked by polling <code>getprop</code>.</p>
+  </div>
+  <div class="boot">
+    <div class="lane h">
+      <h3>Halium</h3>
+      <ol class="steps">
+        <li><div><b>Vendor bootloader (aboot / ABL)</b><p>Unlocked (<code>verifiedbootstate=orange</code>). Loads <code>boot.img</code> and passes <code>androidboot.slot_suffix</code> on A/B devices.</p></div></li>
+        <li><div><b><code>boot.img</code>: kernel + <code>initramfs-android-image</code></b><p>Packed by <code>kernel_android.bbclass</code> (GKI devices also get <code>init_boot</code>). The Halium rootfs itself has no kernel, so one <code>halium-arm64</code> rootfs serves every device.</p></div></li>
+        <li><div><b>Initramfs <code>/init</code></b><p>Lights the panel backlight, starts mdev, then synthesises <code>by-partlabel</code> links the kernel does not provide, so Halium’s own <code>mountroot</code> can stay unpatched. Loads vendor and GKI modules, waits for <code>userdata</code>, and holds boot to charge if the battery is flat.</p></div></li>
+        <li><div><b>Find and mount the rootfs</b><p>Mounts <code>userdata</code> and looks for <code>rootfs.img</code> (loop) or <code>/data/luneos</code> (bind). The rootfs is read-only unless <code>.writable_image</code> exists, which dev images create.</p></div></li>
+        <li><div><b>Assemble Android</b><p>Loop-mounts the GSI <code>system.img</code> at <code>/var/lib/lxc/android/rootfs</code> → <code>/android</code>. Mounts the device’s own <code>vendor$slot</code>. Binds <code>/var</code>, <code>/home</code> and <code>/media/internal</code> from <code>userdata/luneos-data</code>.</p></div></li>
+        <li><div><b>Stage the modules, then <code>switch_root /rfs /sbin/init</code></b><p>LuneOS’s own build of the vendor modules is copied out before the initramfs is freed. systemd then starts <code>ls-hubd</code>, <code>configd</code> and <code>surface-manager</code> early (from <code>local-fs.target</code>).</p></div></li>
+        <li><div><b><code>android-system.service</code></b><p><code>mount-android.sh</code> (dynamic partitions, vendor_dlkm, APEX, binderfs), then <code>lxc-start -n android -- /init</code>. Android init brings up servicemanager and the HALs. <code>start-android-hals.sh</code> and <code>wait-for-android.sh</code> gate on getprop, for up to 120 s.</p></div></li>
+        <li><div><b>Units that wait for Android</b><p><code>luneos-device-config</code> runs twelve generators that write <code>nyx.conf</code>, the oFono binder slots, <code>surface-manager.env</code>, the battery and PulseAudio settings, the hardware-key map and <code>luna-platform.conf</code>. After it come surface-manager, oFono (which first waits for the RIL’s binder slots), PulseAudio, sensorfwd, bluebinder, biomd and nfcd.</p></div></li>
+      </ol>
+      <p class="callout" style="margin-top:6px;font-size:.88rem"><b>When it goes wrong.</b> With <code>initrd_log_fail</code> on the kernel command line, the initramfs dumps dmesg every three seconds into a spare partition — <code>init_boot_a</code> for the failure dump and <code>init_boot_b</code> for progress, or one partition named by <code>initrd_log_part</code> on devices without them. A failed boot now parks forever instead of panicking, so the dump and the USB gadget survive.</p>
+    </div>
+    <div class="lane m">
+      <h3>Mainline</h3>
+      <ol class="steps">
+        <li><div><b>Board bootloader</b><p>PinePhone: EFI firmware → <code>systemd-boot</code>. PinePhone Pro and PineTab2: megi U-Boot → extlinux → fitImage. Raspberry Pi: GPU firmware → U-Boot → <code>boot.scr</code>. msm8953: aboot, optionally with lk2nd prepended.</p></div></li>
+        <li><div><b>Kernel + DTB + initramfs</b><p><code>initramfs-simple-image</code> (PinePhone, PineTab2 inside the FIT). PinePhone Pro’s FIT carries <code>initramfs-uboot-image</code>, but the kernel discards it and mounts <code>root=PARTLABEL=rootfsA</code> itself. msm8953 phones use <code>initramfs-scripts-android</code> inside an Android <code>boot.img</code>.</p></div></li>
+        <li><div><b>Initramfs <code>/init</code></b><p>Mounts pseudo-filesystems and starts mdev. Checks for recovery (<code>bootmode=recovery</code> or a key held down → <code>luneos_recovery_ui</code>). Sets up USB networking.</p></div></li>
+        <li><div><b>Find and mount the rootfs</b><p>Looks up the partition named <code>luneos-root*</code> (using <code>LoaderDevicePartUUID</code> on EFI), grows it to fill the card, and mounts it read-write. There is no <code>/var</code> or <code>/home</code> split.</p></div></li>
+        <li><div><b><code>switch_root</code> → systemd</b><p>Same unit graph as Halium, without the Android units. <code>luneos-device-config</code> still runs early.</p></div></li>
+        <li><div><b>Modem &amp; board helpers</b><p><code>eg25-manager</code> (before oFono), <code>luneos-usb-gadget</code> (before connman) and <code>luneos-diag</code>. PineTab2 also runs <code>wifi-module-load</code> and <code>hciattach</code>. Qualcomm phones load firmware with <code>msm-firmware-loader</code>.</p></div></li>
+      </ol>
+    </div>
+    <div class="lane c">
+      <h3>Shared LuneOS bring-up</h3>
+      <ol class="steps">
+        <li><div><b><code>ls-hubd</code></b><p>The Luna bus is up (<code>Type=notify</code>). PmLogDaemon has no unit; the bus starts it on demand.</p></div></li>
+        <li><div><b><code>surface-manager</code> + card shell</b><p><code>surface-manager -platform eglfs</code> loads <code>WebOSCompositor</code> = luna-next-cardshell. <code>BootLoader.qml</code> shows the logo, then runs <code>initctl emit lsm-ready</code>.</p></div></li>
+        <li><div><b><code>default-webos.target</code></b><p>Starts <code>sam</code> (after the bus and the compositor), then <code>bootd</code>. <code>webapp-mgr</code> is gated on <code>/tmp/lsm-ready</code>.</p></div></li>
+        <li><div><b><code>bootd</code> → <code>core-boot-done</code></b><p><code>webos-cbd.target</code>: audiod, sleepd, power, Bluetooth, camera. Then <code>init-boot-done</code> → connman and PulseAudio.</p></div></li>
+        <li><div><b><code>datastore-init-start</code></b><p><code>webos-dis.target</code>: DB8 (main, media, temp), <code>configurator-db8</code>, luna-sysservice, settings, pdm.</p></div></li>
+        <li><div><b><code>minimal-boot-done</code></b><p><code>webos-mbd.target</code>: maliit, notificationmgr, uMediaServer, mediaindexer.</p></div></li>
+        <li><div><b><code>rest-boot-done</code> → <code>boot-done</code></b><p>activitymanager, appinstalld, <code>configurator-activity</code> and the download manager. Then <code>/tmp/boot-done</code> triggers <code>lsm-ready.service</code>, which restarts WebAppMgr and maliit.</p></div></li>
+        <li><div><b>Hardware services alongside</b><p><code>wlan-dynamic-start</code> arms qcacld-3.0 before wpa_supplicant and connman, <code>kbdscroll</code> follows the compositor on keyboard devices, and the MP01 runs <code>einkd</code> for E Ink refresh modes.</p></div></li>
+        <li><div><b><code>luna-appmanager</code> decides the UI</b><p>Serves <code>org.webosports.bootmgr</code>. If <code>ran-firstuse</code> is missing it launches First Use; otherwise it launches <code>com.palm.launcher</code>, <code>com.palm.systemui</code> and the boot-time apps. The card shell reads this state.</p></div></li>
+      </ol>
+    </div>
+    <div class="lane l">
+      <h3>Legacy HP webOS 3.0.5 (TouchPad), for comparison</h3>
+      <ol class="steps">
+        <li><div><b>Bootie (<code>boot.bin</code>)</b><p>Palm’s bootloader. Loads <code>/boot/uImage</code> (<code>2.6.35-palm-tenderloin</code>) from the ext3 boot partition.</p></div></li>
+        <li><div><b>Read-only ext3 root + LVM <code>store</code></b><p><code>/var</code> and <code>/var/log</code> mount from LVM. <code>cryptodb</code> and <code>cryptofilecache</code> are encrypted and mounted later. Media is FAT.</p></div></li>
+        <li><div><b>upstart 0.3.8: <code>rcS</code> → <code>mountall</code> → <code>bootmisc</code></b><p>Jobs in <code>/etc/event.d</code> start in order of <code>start on stopped …</code> events.</p></div></li>
+        <li><div><b><code>ls-hubd_private</code> → <code>ls-hubd_public</code></b><p>The public hub starts on <code>ls-hubd_private-ready</code>. <code>finish</code> runs on <code>ls-hubd_public-ready</code>.</p></div></li>
+        <li><div><b>After <code>finish</code></b><p>Starts together: powerd, mojodb, tempdb, filecache, audiod, mediaserver, TelephonyInterfaceLayer, PmNetConfigManager, bluetooth, sensord, hidd, keymanager and configurator.</p></div></li>
+        <li><div><b><code>LunaSysMgr</code></b><p>Starts on <code>stopped configurator</code>. Without <code>ran-first-use</code> it runs with <code>-a com.palm.app.firstuse</code>. It forks WebAppMgr and emits <code>LunaSysMgr-ready</code>.</p></div></li>
+        <li><div><b><code>LunaReady</code>, <code>activitymanager</code></b><p>Jobs follow LunaSysMgr’s ready event. activitymanager waits for <code>datastore-initialized</code>, and PmWanDaemon for configurator.</p></div></li>
+      </ol>
+    </div>
+  </div>
+  <p class="count prose">Every device now brings up its own USB network: each board has its own <code>/24</code> (PinePhone <code>172.16.42</code>, PinePhone Pro <code>.43</code>, PineTab2 <code>.44</code>, Halium <code>.45</code>, FuriPhone <code>.46</code>), the device takes <code>.2</code>, and a one-lease <code>udhcpd</code> hands the host <code>.1</code>, so a single host-side profile works everywhere. The gadget also carries a per-device product string and a serial taken from the device tree.</p>
+  <p class="count prose">The <code>webos-*.target</code> files have no ordering of their own. <code>bootd</code> calls <code>initctl emit</code>, which touches <code>/tmp/&lt;event&gt;</code> and starts the matching target. The only LuneOS-specific targets are <code>lsm-ready.target</code> and <code>nyx.target</code>.</p>
+</section>
+
+<!-- ============ LAUNCH ============ -->
+<section class="block" id="launch">
+  <div class="head">
+    <div class="eyebrow">Figure 6</div>
+    <h2>What happens when you tap an app</h2>
+    <p class="prose">Launching an app is the same on every target. The shell asks SAM over the Luna bus, SAM picks a runtime from the app type in <code>appinfo.json</code>, and the app process draws a Wayland surface that the compositor shows as a card.</p>
+  </div>
+  <figure>
+  <div class="fig-box">
+  <svg viewBox="0 0 1000 330" role="img" aria-label="App launch: the card shell inside luna-surfacemanager sends a launch request over ls-hubd to SAM, SAM starts the app in WAM, qml-runner, a native binary or the PDK shim, and the app's Wayland surface returns to the surface manager as a card.">
+    <defs><marker id="al" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="currentColor"/></marker></defs>
+    <rect x="20" y="30" width="200" height="240" rx="8" class="box"/>
+    <text x="36" y="56" class="tb">luna-surfacemanager</text><text x="36" y="74" class="ts">Qt 6 Wayland compositor</text>
+    <rect x="36" y="92" width="168" height="120" rx="6" class="lune-f"/>
+    <text x="50" y="116" class="tb">luna-next-cardshell</text><text x="50" y="136" class="ts">QML: launcher, cards,</text><text x="50" y="152" class="ts">Just Type, notifications</text><text x="50" y="176" class="tm">WebOSCompositor</text>
+    <text x="36" y="250" class="ts">composes surfaces as cards</text>
+
+    <line x1="220" y1="100" x2="278" y2="100" class="edge" marker-end="url(#al)"/>
+    <text x="249" y="92" class="tl" text-anchor="middle">LS2</text>
+    <rect x="280" y="76" width="120" height="48" rx="6" class="box"/><text x="340" y="98" class="tb" text-anchor="middle">ls-hubd</text><text x="340" y="115" class="ts" text-anchor="middle">luna-service2</text>
+    <line x1="400" y1="100" x2="448" y2="100" class="edge" marker-end="url(#al)"/>
+    <rect x="450" y="76" width="130" height="48" rx="6" class="ose-f"/><text x="515" y="98" class="tb" text-anchor="middle">SAM</text><text x="515" y="115" class="ts" text-anchor="middle">reads appinfo.json</text>
+    <text x="280" y="62" class="tm">applicationmanager/launch</text>
+
+    <rect x="280" y="160" width="300" height="44" rx="6" class="box dash" style="stroke-dasharray:5 4"/>
+    <text x="294" y="180" class="t">Legacy callers: com.palm.applicationManager</text><text x="294" y="196" class="ts">served by luna-appmanager (Palm-derived)</text>
+    <line x1="340" y1="160" x2="340" y2="126" class="edge dash" marker-end="url(#al)"/>
+
+    <line x1="580" y1="100" x2="610" y2="100" class="edge"/>
+    <line x1="610" y1="51" x2="610" y2="228" class="edge"/>
+    <g class="edge" marker-end="url(#al)"><line x1="610" y1="51" x2="638" y2="51"/><line x1="610" y1="110" x2="638" y2="110"/><line x1="610" y1="169" x2="638" y2="169"/><line x1="610" y1="228" x2="638" y2="228"/></g>
+    <rect x="640" y="30" width="300" height="42" rx="6" class="box"/><text x="654" y="48" class="tb">web</text><text x="700" y="48" class="t">WAM → Chromium 151 renderer</text><text x="654" y="64" class="ts">Enyo 1/2, Mojo, Enact — one process per app</text>
+    <rect x="640" y="89" width="300" height="42" rx="6" class="box"/><text x="654" y="107" class="tb">qml</text><text x="700" y="107" class="t">qml-runner / boosterd</text><text x="654" y="123" class="ts">QML apps using luneos-components</text>
+    <rect x="640" y="148" width="300" height="42" rx="6" class="box"/><text x="654" y="166" class="tb">native</text><text x="712" y="166" class="t">Qt 6 binary</text><text x="654" y="182" class="ts">lifecycle via libwebos-application</text>
+    <rect x="640" y="207" width="300" height="42" rx="6" class="box"/><text x="654" y="225" class="tb">pdk</text><text x="700" y="225" class="t">pdk-luneos shim · SDL</text><text x="654" y="241" class="ts">legacy armel games under qemu-user</text>
+
+    <path d="M940 51 H968 V300 H120 V272" class="edge" marker-end="url(#al)"/>
+    <line x1="940" y1="110" x2="968" y2="110" class="edge"/><line x1="940" y1="169" x2="968" y2="169" class="edge"/><line x1="940" y1="228" x2="968" y2="228" class="edge"/>
+    <text x="544" y="318" class="tl" text-anchor="middle">each app process draws its own Wayland surface (webOS shell extension) → shown as a card</text>
+  </svg>
+  </div>
+  <figcaption><b>One entry point, four runtimes.</b> WAM runs as a daemon from boot, so a web app launch starts a new Chromium renderer, not a new browser. SAM is the lifecycle authority. The dashed legacy path keeps Palm-era callers working. Which launch path SAM uses for QML apps (qml-runner or a native binary) depends on the app. The research left this open.</figcaption>
+  </figure>
+</section>
+
+<!-- ============ YOCTO LAYERS ============ -->
+<section class="block" id="layers">
+  <div class="head">
+    <div class="eyebrow">Figure 7</div>
+    <h2>Yocto layer structure</h2>
+    <p class="prose">This is the <code>bblayers.conf</code> of the wrynose tree. Arrows are <code>LAYERDEPENDS</code>, and the amber number is <code>BBFILE_PRIORITY</code>, where the higher number wins when two layers provide the same recipe. Hardware layers are on the left, distro layers on the right, and both sit on OpenEmbedded.</p>
+  </div>
+  <figure>
+  <div class="fig-box">
+  <svg viewBox="0 0 1200 580" role="img" aria-label="Yocto layers: device layers depend on meta-android, with meta-hp and meta-samsung also on meta-mainline; the distro layers meta-luneos and meta-luneui sit on the right and require android-layer and qualcomm-modems-layer; everything builds on meta-qt6, meta-openembedded and openembedded-core.">
+    <defs>
+      <marker id="ay" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="currentColor"/></marker>
+    </defs>
+    <text x="20" y="26" class="ts" style="letter-spacing:.12em">DEVICE LAYERS</text>
+    <text x="450" y="26" class="ts" style="letter-spacing:.12em">HARDWARE SUPPORT</text>
+    <text x="820" y="26" class="ts" style="letter-spacing:.12em">DISTRO · meta-webos-ports</text>
+
+    <rect x="20" y="44" width="360" height="74" rx="6" class="hal-f"/>
+    <text x="32" y="64" class="tb">12 vendor layers</text><text x="368" y="64" class="prio" text-anchor="end">7</text>
+    <text x="32" y="84" class="tm" style="font-size:10.5px">blackberry furilabs google greentouch huawei lg</text>
+    <text x="32" y="99" class="tm" style="font-size:10.5px">minimal motorola oneplus unihertz xiaomi zinwa</text>
+    <text x="32" y="113" class="tl">unihertz is in bblayers but not yet committed</text>
+
+    <rect x="20" y="128" width="360" height="46" rx="6" class="box"/><text x="32" y="148" class="tb">meta-hp</text><text x="368" y="148" class="prio" text-anchor="end">7</text><text x="32" y="166" class="ts">TouchPad — Halium and mainline</text>
+    <rect x="20" y="184" width="360" height="46" rx="6" class="box"/><text x="32" y="204" class="tb">meta-samsung</text><text x="368" y="204" class="prio" text-anchor="end">7</text><text x="32" y="222" class="ts">Galaxy A3 2015 (mainline) · Tab A7 Lite (Halium)</text>
+    <rect x="20" y="240" width="360" height="46" rx="6" class="ml-f"/><text x="32" y="260" class="tb">meta-pine64-luneos</text><text x="368" y="260" class="prio" text-anchor="end">7</text><text x="32" y="278" class="ts">PinePhone, PinePhone Pro, PineTab2</text>
+    <rect x="20" y="296" width="360" height="46" rx="6" class="ml-f"/><text x="32" y="316" class="tb">meta-mecha-luneos</text><text x="368" y="316" class="prio" text-anchor="end">7</text><text x="32" y="334" class="ts">Mecha Comet — NXP i.MX8M Plus, i.MX95</text>
+    <rect x="20" y="352" width="360" height="46" rx="6" class="ml-f"/><text x="32" y="372" class="tb">meta-rpi-luneos</text><text x="368" y="372" class="prio" text-anchor="end">20</text><text x="32" y="390" class="ts">Raspberry Pi 3 / 4 · also requires meta-luneos</text>
+
+    <rect x="450" y="44" width="300" height="52" rx="6" class="hal-f"/><text x="462" y="64" class="tb">meta-android</text><text x="738" y="64" class="prio" text-anchor="end">7</text><text x="462" y="82" class="ts">Halium, hybris, GKI bootimg, lk2nd</text>
+    <rect x="450" y="106" width="300" height="52" rx="6" class="ml-f"/><text x="462" y="126" class="tb">meta-mainline</text><text x="738" y="126" class="prio" text-anchor="end">7</text><text x="462" y="144" class="ts">initramfs, mainline kernel classes</text>
+    <rect x="450" y="168" width="300" height="52" rx="6" class="ml-f"/><text x="462" y="188" class="tb">meta-qualcomm-modems</text><text x="738" y="188" class="prio" text-anchor="end">7</text><text x="462" y="206" class="ts">qrtr, rmtfs, qmic</text>
+    <rect x="450" y="230" width="300" height="44" rx="6" class="box"/><text x="462" y="250" class="tb">meta-rockchip</text><text x="738" y="250" class="prio" text-anchor="end">1</text><text x="462" y="266" class="ts">rk3399, rk3566</text>
+    <rect x="450" y="284" width="300" height="44" rx="6" class="box"/><text x="462" y="304" class="tb">meta-raspberrypi</text><text x="738" y="304" class="prio" text-anchor="end">9</text><text x="462" y="320" class="ts">bcm27xx BSP</text>
+    <rect x="450" y="338" width="300" height="44" rx="6" class="box"/><text x="462" y="358" class="tb">meta-arm</text><text x="738" y="358" class="prio" text-anchor="end">5</text><text x="462" y="374" class="ts">+ arm-toolchain · i.MX, Rockchip firmware</text>
+
+    <rect x="820" y="44" width="360" height="56" rx="6" class="lune-f" style="stroke-dasharray:5 4"/><text x="832" y="64" class="tb">backports-6.1</text><text x="1168" y="64" class="prio" text-anchor="end">33</text><text x="832" y="84" class="ts">libcamera 0.7.2 from the next release</text>
+    <rect x="820" y="110" width="360" height="56" rx="6" class="lune-f" style="stroke-dasharray:5 4"/><text x="832" y="130" class="tb">holdbacks-5.3</text><text x="1168" y="130" class="prio" text-anchor="end">34</text><text x="832" y="150" class="ts">systemd 257.8 — 258 dropped cgroup v1</text>
+    <rect x="820" y="186" width="360" height="62" rx="6" class="lune-f"/><text x="832" y="208" class="tb">meta-luneos</text><text x="1168" y="208" class="prio" text-anchor="end">20</text><text x="832" y="226" class="ts">distro conf · images · packagegroups</text><text x="832" y="242" class="ts">OSE / owo / LuneOS recipes · PDK</text>
+    <rect x="820" y="258" width="360" height="56" rx="6" class="lune-f"/><text x="832" y="278" class="tb">meta-luneui</text><text x="1168" y="278" class="prio" text-anchor="end">15</text><text x="832" y="298" class="ts">luna-service2, nyx-lib, Qt / Wayland / Mesa</text>
+
+    <rect x="20" y="440" width="200" height="48" rx="6" class="box"/><text x="32" y="460" class="tb">meta-qt6</text><text x="208" y="460" class="prio" text-anchor="end">5</text><text x="32" y="478" class="ts">Qt 6.12 branch</text>
+    <rect x="236" y="440" width="160" height="48" rx="6" class="box"/><text x="248" y="460" class="tb">meta-clang</text><text x="384" y="460" class="prio" text-anchor="end">7</text><text x="248" y="478" class="ts">WAM, webruntime</text>
+    <rect x="412" y="440" width="768" height="48" rx="6" class="box"/><text x="424" y="460" class="tb">meta-openembedded</text><text x="1168" y="460" class="prio" text-anchor="end">5</text><text x="424" y="478" class="tm" style="font-size:10.5px">meta-oe · meta-python · meta-networking · meta-multimedia · meta-filesystems</text>
+
+    <rect x="20" y="508" width="1000" height="48" rx="6" class="sunk"/><text x="32" y="528" class="tb">openembedded-core · meta</text><text x="1008" y="528" class="prio" text-anchor="end">5</text><text x="32" y="546" class="ts">Yocto 6.0 wrynose</text>
+    <rect x="1036" y="508" width="144" height="48" rx="6" class="sunk"/><text x="1048" y="528" class="tb">bitbake</text><text x="1048" y="546" class="ts">build engine</text>
+
+    <g class="edge" marker-end="url(#ay)">
+      <line x1="380" y1="78" x2="446" y2="66"/>
+      <line x1="380" y1="148" x2="446" y2="76"/>
+      <line x1="380" y1="158" x2="446" y2="124"/>
+      <line x1="380" y1="207" x2="446" y2="86"/>
+      <line x1="380" y1="214" x2="446" y2="136"/>
+      <line x1="380" y1="375" x2="446" y2="306"/>
+      <line x1="990" y1="248" x2="990" y2="256"/>
+      <line x1="990" y1="314" x2="990" y2="438"/>
+      <line x1="520" y1="382" x2="520" y2="438"/>
+      <line x1="520" y1="488" x2="520" y2="506"/>
+    </g>
+    <text x="392" y="60" class="tl">depends</text>
+    <path d="M380 263 L446 252" class="edge dash" marker-end="url(#ay)"/>
+    <text x="392" y="280" class="tl">includes</text>
+    <path d="M380 319 L446 360" class="edge" marker-end="url(#ay)"/>
+    <path d="M818 217 H790 V66 H752" class="edge" style="stroke:var(--p-lune)" marker-end="url(#ay)"/>
+    <path d="M790 190 H752" class="edge" style="stroke:var(--p-lune)" marker-end="url(#ay)"/>
+    <text x="786" y="408" class="tl" style="fill:var(--p-lune)" text-anchor="end">meta-luneos requires android-layer and qualcomm-modems-layer, even for mainline builds</text>
+    <text x="1000" y="420" class="tl" text-anchor="end">qt6 · oe · networking · multimedia</text>
+  </svg>
+  </div>
+  <figcaption><b>Reading the priorities.</b> The distro layers (20 and 15) override the BSP and OpenEmbedded layers (7 and 5). The backport and holdback layers (33 and 34) are deliberately the highest: each pins one recipe version and holds no LuneOS configuration, so it can be deleted once wrynose ships that version. Four vendor layers arrived in the last two weeks — furilabs, samsung, unihertz and zinwa — plus <code>meta-mecha-luneos</code> as a third board layer beside Pine64 and Raspberry Pi. Branches here: meta-webos-ports <code>herrie/latest-20260930</code>, meta-smartphone <code>herrie/fajita-and-q25</code>, meta-pine64-luneos <code>herrie/kernel-7.2</code>, meta-mecha-luneos <code>main</code>, meta-qt6 <code>6.12</code>, everything else <code>wrynose</code>.</figcaption>
+  </figure>
+</section>
+
+<!-- ============ IMAGES ============ -->
+<section class="block" id="images">
+  <div class="head">
+    <div class="eyebrow">Build output</div>
+    <h2>Images, packaging &amp; install</h2>
+    <p class="prose">Every target builds <code>luneos-dev-image</code>, which is <code>webos_image</code> plus the <code>packagegroup-webos-extended</code>, <code>packagegroup-luneos-extended</code> and <code>packagegroup-luneos-development</code> package groups. What differs per target is how the image is packaged and installed.</p>
+  </div>
+  <div class="scroll">
+  <table style="min-width:820px">
+    <thead><tr><th></th><th style="color:var(--halium)">Halium · GSI era</th><th style="color:var(--halium)">Halium · legacy</th><th style="color:var(--mainline)">Mainline Qualcomm</th><th style="color:var(--mainline)">Pine64 · Raspberry Pi</th></tr></thead>
+    <tbody>
+      <tr><td class="rowlab">Boot artefact</td><td><code>luneos-bootimg-gki</code> → <code>boot</code> + <code>init_boot</code> / <code>vendor_boot</code> (header v3–v4), for both true Tier A devices and Tier B devices that only borrow the packaging.</td><td><code>kernel_android.bbclass</code>, header v0 to v2 (the OnePlus 6T is the first v1, which keeps its device tree appended to the kernel)</td><td><code>Image.fastboot</code>, optionally with lk2nd prepended at a configurable offset: 1 MiB for the msm8953 fork, 512 KiB for upstream lk2nd on msm8916</td><td>Kernel and DTB inside the wic image; U-Boot or systemd-boot</td></tr>
+      <tr><td class="rowlab">Rootfs</td><td><code>rootfs.img</code> inside <code>userdata.img</code>, next to the GSI</td><td><code>tar.gz</code> in a recovery zip</td><td>Recovery zip</td><td><code>.wic.gz</code> + <code>.wic.bmap</code></td></tr>
+      <tr><td class="rowlab">Install</td><td><code>flash.sh</code>: vbmeta, <code>boot_a/b</code>, userdata over fastboot</td><td>TWRP sideload · <code>webos_deploy.sh</code></td><td>TWRP / fastboot</td><td><code>dd</code> or <code>bmaptool</code> to SD or eMMC</td></tr>
+      <tr><td class="rowlab">Recipe</td><td><code>luneos-fastboot-package.inc</code></td><td><code>luneos-package.inc</code></td><td><code>kernel_android.bbclass</code></td><td><code>*-luneos-bsp-image.wks</code></td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p class="count prose">In the working tree, <code>kernel_android.bbclass</code> is also gaining an unsigned AVB hash footer for vendors that chain <code>boot</code> from vbmeta. No machine config switches it on yet.</p>
+  <p class="callout prose">The UBports Installer fork has validated configs for mako and hammerhead. Configs for mido, rosy and tissot are still to do, and Pine64 needs a new block-device plugin.</p>
+</section>
+
+<!-- ============ TARGETS ============ -->
+<section class="block" id="targets">
+  <div class="head">
+    <div class="eyebrow">Machines</div>
+    <h2>Target matrix</h2>
+    <p class="prose">Every <code>MACHINE</code> in the tree: 44 of them, ten added in the last two weeks. <b>Active</b> means a current image in <code>tmp/deploy/images</code> or confirmed working by the maintainer. <b>Builds</b> means build history but no current image. Halium devices are split into two tiers: tier A runs the Android Common Kernel (GKI) with the stock vendor modules, tier B builds a device-specific vendor kernel in-tree. Three tier B devices (Q25, MP01, Pixel 4a 5G) borrow GKI <i>packaging</i> without a GKI kernel.</p>
+  </div>
+  <div class="filters">
+    <div class="seg" role="group" aria-label="Filter by family">
+      <button type="button" id="f-all" data-f="all" aria-pressed="true">All</button>
+      <button type="button" id="f-h" data-f="h" aria-pressed="false">Halium</button>
+      <button type="button" id="f-m" data-f="m" aria-pressed="false">Mainline</button>
+    </div>
+    <label class="count"><input type="checkbox" id="f-active"> Active only</label>
+    <span class="count" id="tcount"></span>
+  </div>
+  <div class="scroll">
+    <table class="targets">
+      <thead><tr><th>Machine</th><th>Device</th><th>SoC</th><th>Family</th><th>Kernel</th><th>Layer</th><th>Status</th></tr></thead>
+      <tbody id="tbody"></tbody>
+    </table>
+  </div>
+  <p class="count">SoC names for the older Tier B devices are from general knowledge, not the machine configs. Three of these are not committed yet: the <code>meta-unihertz</code> layer with its three Titans, <code>sm-t220</code>, and <code>mako-halium</code>. <code>rosy</code> is a mainline machine but still carries a leftover <code>android-system-image-rosy</code> recipe.</p>
+</section>
+</div>
+
+<footer>
+  <div class="wrap">
+    <div>LuneOS is free software, built by the webOS Ports community.</div>
+    <div>Read from the wrynose build tree, 2 October 2026. <a href="https://www.webosose.org/docs/guides/core-topics/architecture/architecture-overview/">webOS OSE architecture overview</a></div>
+  </div>
+</footer>
+
+<script>
+(function(){
+  var layers=document.getElementById('stackfig');
+  if(layers){
+    document.querySelectorAll('button[data-show]').forEach(function(b){
+      b.addEventListener('click',function(){
+        layers.dataset.show=b.dataset.show;
+        document.querySelectorAll('button[data-show]').forEach(function(x){x.setAttribute('aria-pressed',String(x===b));});
+      });
+    });
+  }
+
+  var T=[
+    ['halium-arm64','Generic rootfs for arm64 Treble devices','—','h','Generic','none (uses device kernel)','meta-android','active'],
+    ['halium-arm','Generic rootfs, 32-bit','—','h','Generic','none (uses device kernel)','meta-android','active'],
+    ['q25','Zinwa Q25','MT6789','h','B · GKI packaging','linux-zinwa-q25 5.10.198','meta-zinwa','active'],
+    ['radon','FuriPhone FLX1s','MT6877 Dimensity 900','h','B','linux-furilabs-radon 4.19.325','meta-furilabs','active'],
+    ['mako-halium','LG Nexus 4','APQ8064','h','B','linux-lg-mako-halium 3.4.113','meta-lg','active'],
+    ['hammerhead-halium','LG Nexus 5','MSM8974','h','B','3.4','meta-lg','active'],
+    ['mp01','Minimal Phone MP01 (E Ink)','MediaTek','h','B · GKI packaging','linux-minimal-mp01 5.10.233','meta-minimal','active'],
+    ['sargo','Google Pixel 3a','SDM670','h','B','linux-google-sargo 4.9','meta-google','active'],
+    ['bluejay','Google Pixel 6a','Tensor GS101','h','A','linux-halium-gki 6.1.172','meta-google','active'],
+    ['panther','Google Pixel 7','Tensor G2','h','A','linux-halium-gki 6.1.172','meta-google','builds'],
+    ['tangorpro','Google Pixel Tablet','Tensor G2','h','A','linux-halium-gki 6.1.172','meta-google','active'],
+    ['athena','BlackBerry KEY2','SDM660','h','B','linux-blackberry-athena 4.19','meta-blackberry','active'],
+    ['mindphone','GreenTouch MindPhone','MediaTek (armv7)','h','B','4.14','meta-greentouch','active'],
+    ['tissot-halium','Xiaomi Mi A1','MSM8953','h','B','4.9 · Halium 16 GSI','meta-xiaomi','builds'],
+    ['mido-halium','Xiaomi Redmi Note 4','MSM8953','h','B','4.9 · Halium 16 GSI','meta-xiaomi','builds'],
+    ['surya','POCO X3 NFC','SM7150','h','B','linux-xiaomi-surya 4.14','meta-xiaomi','builds'],
+    ['tenderloin-halium','HP TouchPad','APQ8060','h','B','3.4','meta-hp','builds'],
+    ['sm-t220','Samsung Galaxy Tab A7 Lite','MT8768T','h','B','linux-samsung-sm-t220 4.19.191','meta-samsung','wip'],
+    ['fajita','OnePlus 6T','SDM845','h','B','linux-oneplus-fajita 4.9','meta-oneplus','wip'],
+    ['bramble','Google Pixel 4a 5G','SM7250','h','B · GKI packaging','linux-google-bramble 4.19.325','meta-google','wip'],
+    ['sunfish','Google Pixel 4a','SM7125','h','B','linux-google-sunfish 4.14.357','meta-google','wip'],
+    ['titan','Unihertz Titan','MT6771','h','B','linux-unihertz-titan','meta-unihertz','wip'],
+    ['titanpocket','Unihertz Titan Pocket','MT6771','h','B','linux-unihertz-titanpocket','meta-unihertz','wip'],
+    ['titanslim','Unihertz Titan Slim','MT6771','h','B','linux-unihertz-titanslim','meta-unihertz','wip'],
+    ['sagit','Xiaomi Mi 6','MSM8998','h','B · Halium 9','4.4','meta-xiaomi','legacy'],
+    ['oxygen','Xiaomi Mi Max 2','MSM8953','h','B · Halium 7.1','3.18','meta-xiaomi','legacy'],
+    ['angler','Huawei Nexus 6P','MSM8994','h','B · Halium 7.1','3.10','meta-huawei','legacy'],
+    ['athene','Motorola Moto G4','MSM8952','h','B · Halium 7.1','3.10','meta-motorola','legacy'],
+    ['onyx','OnePlus X','MSM8974','h','B · Halium 7.1','3.4','meta-oneplus','legacy'],
+    ['a3-2015','Samsung Galaxy A3 2015','MSM8916','m','msm8916','msm8916-mainline 7.3-rc2','meta-samsung','active'],
+    ['mako','LG Nexus 4','APQ8064','m','Qualcomm','mainline','meta-lg','active'],
+    ['hammerhead','LG Nexus 5','MSM8974','m','Qualcomm','linux-lg-hammerhead 6.9','meta-lg','active'],
+    ['pinephone','PINE64 PinePhone','Allwinner A64','m','Pine64','megi orange-pi 7.2','meta-pine64-luneos','active'],
+    ['pinephonepro','PINE64 PinePhone Pro','RK3399S','m','Pine64','megi orange-pi 7.2','meta-pine64-luneos','active'],
+    ['pinetab2','PINE64 PineTab2','RK3566','m','Pine64','megi orange-pi 7.2','meta-pine64-luneos','active'],
+    ['tissot','Xiaomi Mi A1','MSM8953','m','msm8953','msm8953-mainline 6.9','meta-xiaomi','builds'],
+    ['rosy','Xiaomi Redmi 5','SDM450','m','msm8953','msm8953-mainline 6.9','meta-xiaomi','builds'],
+    ['comet-imx8mp','Mecha Comet','NXP i.MX8M Plus','m','Mecha','linux-comet','meta-mecha-luneos','wip'],
+    ['comet-imx95','Mecha Comet (i.MX95 variant)','NXP i.MX95','m','Mecha','blocked on upstream board support','meta-mecha-luneos','wip'],
+    ['mido','Xiaomi Redmi Note 4','MSM8953','m','msm8953','msm8953-mainline 6.9','meta-xiaomi','unclear'],
+    ['tenderloin','HP TouchPad','APQ8060','m','Qualcomm','linux-yocto 6.18','meta-hp','unclear'],
+    ['raspberrypi3(-64)','Raspberry Pi 3','BCM2837','m','Raspberry Pi','linux-raspberrypi','meta-rpi-luneos','unclear'],
+    ['raspberrypi4(-64)','Raspberry Pi 4','BCM2711','m','Raspberry Pi','linux-raspberrypi','meta-rpi-luneos','unclear'],
+    ['qemux86-64','Emulator','x86-64','m','QEMU','linux-yocto','openembedded-core','builds']
+  ];
+  var LBL={active:'Active',builds:'Builds',wip:'In progress',legacy:'Legacy',unclear:'Unverified'};
+  var fam='all', tb=document.getElementById('tbody'), act=document.getElementById('f-active'), cnt=document.getElementById('tcount');
+  if(!tb) return;
+  function esc(s){return String(s).replace(/[&<>]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;'}[c];});}
+  function render(){
+    var rows=T.filter(function(r){return (fam==='all'||r[3]===fam)&&(!act.checked||r[7]==='active');});
+    tb.innerHTML=rows.map(function(r){
+      var f=r[3]==='h'?'<span class="fam h">Halium \u00b7 '+esc(r[4])+'</span>':'<span class="fam m">Mainline \u00b7 '+esc(r[4])+'</span>';
+      return '<tr><td><code>'+esc(r[0])+'</code></td><td>'+esc(r[1])+'</td><td>'+esc(r[2])+'</td><td>'+f+'</td><td class="num">'+esc(r[5])+'</td><td><code>'+esc(r[6])+'</code></td><td><span class="pill st-'+r[7]+'">'+LBL[r[7]]+'</span></td></tr>';
+    }).join('');
+    cnt.textContent=rows.length+' of '+T.length+' machines';
+  }
+  document.querySelectorAll('button[data-f]').forEach(function(b){
+    b.addEventListener('click',function(){
+      fam=b.dataset.f;
+      document.querySelectorAll('button[data-f]').forEach(function(x){x.setAttribute('aria-pressed',String(x===b));});
+      render();
+    });
+  });
+  act.addEventListener('change',render);
+  render();
+})();
+</script>
+
+</body>
+</html>
