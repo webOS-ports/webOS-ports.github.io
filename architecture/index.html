@@ -790,7 +790,7 @@ footer a{color:var(--soft)}
   <div class="head">
     <div class="eyebrow">Machines</div>
     <h2>Target matrix</h2>
-    <p class="prose">Every <code>MACHINE</code> in the tree: 44 of them, ten added in the last two weeks. <b>Active</b> means a current image in <code>tmp/deploy/images</code> or confirmed working by the maintainer. <b>Builds</b> means build history but no current image. Halium devices are split into two tiers: tier A runs the Android Common Kernel (GKI) with the stock vendor modules, tier B builds a device-specific vendor kernel in-tree. Three tier B devices (Q25, MP01, Pixel 4a 5G) borrow GKI <i>packaging</i> without a GKI kernel.</p>
+    <p class="prose">Every <code>MACHINE</code> in the tree: 45 of them, ten added in the last two weeks. <b>Active</b> means a current image in <code>tmp/deploy/images</code> or confirmed working by the maintainer. <b>Builds</b> means build history but no current image. Halium devices are split into two tiers: tier A runs the Android Common Kernel (GKI) with the stock vendor modules, tier B builds a device-specific vendor kernel in-tree. Three tier B devices (Q25, MP01, Pixel 4a 5G) borrow GKI <i>packaging</i> without a GKI kernel.</p>
   </div>
   <div class="filters">
     <div class="seg" role="group" aria-label="Filter by family">
@@ -835,7 +835,7 @@ footer a{color:var(--soft)}
     ['halium-arm','Generic rootfs, 32-bit','—','h','Generic','none (uses device kernel)','meta-android','active'],
     ['q25','Zinwa Q25','MT6789','h','B · GKI packaging','linux-zinwa-q25 5.10.198','meta-zinwa','active'],
     ['radon','FuriPhone FLX1s','MT6877 Dimensity 900','h','B','linux-furilabs-radon 4.19.325','meta-furilabs','active'],
-    ['mako-halium','LG Nexus 4','APQ8064','h','B','linux-lg-mako-halium 3.4.113','meta-lg','active'],
+    ['mako-halium','LG Nexus 4','APQ8064','h','B','linux-lg-mako-halium 3.4.113 · Halium 16 GSI','meta-lg','active'],
     ['hammerhead-halium','LG Nexus 5','MSM8974','h','B','3.4 · Halium 16 GSI','meta-lg','active'],
     ['mp01','Minimal Phone MP01 (E Ink)','MediaTek','h','B · GKI packaging','linux-minimal-mp01 5.10.233','meta-minimal','active'],
     ['sargo','Google Pixel 3a','SDM670','h','B','linux-google-sargo 4.9','meta-google','active'],
@@ -847,7 +847,8 @@ footer a{color:var(--soft)}
     ['tissot-halium','Xiaomi Mi A1','MSM8953','h','B','4.9 · Halium 16 GSI','meta-xiaomi','builds'],
     ['mido-halium','Xiaomi Redmi Note 4','MSM8953','h','B','4.9 · Halium 16 GSI','meta-xiaomi','builds'],
     ['surya','POCO X3 NFC','SM7150','h','B','linux-xiaomi-surya 4.14','meta-xiaomi','builds'],
-    ['tenderloin-halium','HP TouchPad','APQ8060','h','B','3.4','meta-hp','builds'],
+    ['tenderloin-halium','HP TouchPad','APQ8060','h','B','3.4 · Halium 16 GSI','meta-hp','active'],
+    ['sm-t520','Samsung Galaxy Tab Pro 10.1','Exynos 5420','h','B','linux-samsung-sm-t520 3.4.113 · Halium 16 GSI','meta-samsung','active'],
     ['sm-t220','Samsung Galaxy Tab A7 Lite','MT8768T','h','B','linux-samsung-sm-t220 4.19.191 · Halium 16 GSI','meta-samsung','active'],
     ['fajita','OnePlus 6T','SDM845','h','B','linux-oneplus-fajita 4.9','meta-oneplus','wip'],
     ['bramble','Google Pixel 4a 5G','SM7250','h','B · GKI packaging','linux-google-bramble 4.19.325','meta-google','wip'],
