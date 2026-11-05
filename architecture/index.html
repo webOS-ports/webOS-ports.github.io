@@ -244,7 +244,7 @@ footer a{color:var(--soft)}
     <li><span>Halium base</span><b>Halium 16 GSI</b></li>
   </ul>
   <nav class="toc" aria-label="Sections">
-    <a href="#stack">Layered stack</a><a href="#ose">Relation to webOS OSE</a><a href="#legacy">Legacy webOS</a><a href="#features">Per-device composition</a><a href="#converge">Hardware adaptation</a><a href="#halium">Inside Halium</a><a href="#boot">Boot flow</a><a href="#launch">App launch</a><a href="#layers">Yocto layers</a><a href="#images">Images &amp; install</a><a href="#targets">Targets</a>
+    <a href="#stack">Layered stack</a><a href="#ose">Relation to webOS OSE</a><a href="#legacy">Legacy webOS</a><a href="#features">Per-device composition</a><a href="#converge">Hardware adaptation</a><a href="#halium">Inside Halium</a><a href="#boot">Boot flow</a><a href="#launch">App launch</a><a href="#layers">Yocto layers</a><a href="#images">Images &amp; install</a><a href="#build">Build &amp; CI</a><a href="#recent">Recent additions</a><a href="#targets">Targets</a>
   </nav>
 </div>
 
@@ -333,7 +333,7 @@ footer a{color:var(--soft)}
     <div class="band b-k">
       <div class="band-label">Kernel &amp; Boot<small>per device</small></div>
       <div class="split">
-        <div class="side h"><h4>Android kernel</h4><div class="chips"><span class="chip o-up">GKI android14-6.1 (tier A)</span><span class="chip o-up">vendor kernel 3.4–4.19 (tier B)</span><span class="chip o-up">binder</span><span class="chip o-up">ABL / aboot</span><span class="chip o-lune">boot.img + init_boot</span><span class="chip o-up">initramfs-tools-halium</span></div></div>
+        <div class="side h"><h4>Android kernel</h4><div class="chips"><span class="chip o-up">GKI android14-6.1 (tier A)</span><span class="chip o-up">vendor kernel 3.4–5.10 (tier B)</span><span class="chip o-up">binder</span><span class="chip o-up">ABL / aboot</span><span class="chip o-lune">boot.img + init_boot</span><span class="chip o-up">initramfs-tools-halium</span></div></div>
         <div class="side m"><h4>Mainline Linux</h4><div class="chips"><span class="chip o-up">msm8953-mainline 6.9</span><span class="chip o-up">msm8916-mainline 7.3-rc2</span><span class="chip o-up">megi orange-pi 7.2</span><span class="chip o-up">linux-comet (i.MX8MP)</span><span class="chip o-up">linux-raspberrypi</span><span class="chip o-up">U-Boot · systemd-boot · lk2nd</span><span class="chip o-up">TF-A · crust</span><span class="chip o-up">initramfs-simple</span></div></div>
       </div>
     </div>
@@ -781,8 +781,55 @@ footer a{color:var(--soft)}
     </tbody>
   </table>
   </div>
-  <p class="count prose">In the working tree, <code>kernel_android.bbclass</code> is also gaining an unsigned AVB hash footer for vendors that chain <code>boot</code> from vbmeta. No machine config switches it on yet.</p>
+  <p class="count prose"><code>kernel_android.bbclass</code> can also add an unsigned AVB hash footer (<code>ANDROID_BOOTIMG_AVB_PARTITION_SIZE</code>) for vendors that chain <code>boot</code> from vbmeta. The Unihertz MT6771 kernel recipe is the first to reference it.</p>
   <p class="callout prose">The UBports Installer fork has validated configs for mako and hammerhead. Configs for mido, rosy and tissot are still to do, and Pine64 needs a new block-device plugin.</p>
+</section>
+
+<!-- ============ BUILD & CI ============ -->
+<section class="block" id="build">
+  <div class="head">
+    <div class="eyebrow">Infrastructure</div>
+    <h2>Build &amp; CI</h2>
+    <p class="prose">The layers and <code>webos-ports-setup</code> stay on GitHub. The build pipeline lives in a separate public repository, <code>gitlab.com/webos-ports/luneos-ci</code>, which holds only the pipeline, the container image definition and its scripts. GitLab is used as a build service, not as a mirror: the pipeline clones the setup repository and, through its Makefile, every layer. It replaces the Jenkins jobs that stopped in 2021.</p>
+  </div>
+  <div class="scroll">
+  <table style="min-width:640px">
+    <thead><tr><th>Reference job</th><th>Machine</th><th>What it covers</th></tr></thead>
+    <tbody>
+      <tr><td class="rowlab">aarch64-mainline</td><td><code>tissot</code></td><td>plain aarch64 tune, mainline kernel</td></tr>
+      <tr><td class="rowlab">aarch64-halium</td><td><code>tissot-halium</code></td><td>aarch64 with Halium (to be replaced by <code>halium-arm64</code> once that is on a shared branch)</td></tr>
+      <tr><td class="rowlab">armv7-mainline</td><td><code>tenderloin</code></td><td>32-bit ARM</td></tr>
+      <tr><td class="rowlab">armv7-halium</td><td><code>hammerhead-halium</code></td><td>32-bit ARM with Halium</td></tr>
+      <tr><td class="rowlab">x86-64</td><td><code>qemux86-64</code></td><td>development and emulator</td></tr>
+      <tr><td class="rowlab">nxp-bsp</td><td><code>comet-imx8mp</code></td><td>same tune, different BSP</td></tr>
+      <tr><td class="rowlab">arm64-native</td><td>(aarch64 reference)</td><td>the same build on a native Armv8.2 (Ampere Altra) runner; allowed to fail for now</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p class="count prose">Build cost follows the tune and the variant, not the device, so six reference machines stand in for the whole tree. The pipeline has four stages (lint, build, publish, maintain) and 14 jobs.</p>
+  <p class="prose">Builds run in a pinned Ubuntu 26.04 container image, tagged by date and never <code>latest</code>. Shared sstate and a source mirror are published to a public-read object-storage bucket and fetched anonymously over HTTPS. <code>BB_HASHSERVE</code> is off and <code>BB_SIGNATURE_HANDLER</code> is <code>OEBasicHash</code>, because the default auto hash server stopped the shared cache from ever hitting. Publishing goes through exclusion lists, so the Android system image recipes, extracted OEM firmware, the Halium GSI image and <code>mojo-framework</code> never reach the bucket.</p>
+  <p class="callout prose">As of 1 November the jobs were defined but had not yet run, so treat this as the intended flow rather than a track record. No signed release exists yet: signed images, an SBOM, reproducibility checks and signed OTA are still proposals, and release images have no agreed host.</p>
+  <p class="prose">One licensing finding shapes the layers. <code>mojo-framework</code> is the only recipe with <code>LICENSE = "CLOSED"</code>. Five extracted OEM firmware recipes (<code>tissot</code>, <code>hammerhead</code>, <code>tenderloin</code>, <code>mido</code>, <code>rosy</code>) come from public manufacturer ROMs without a formal redistribution licence. The 15 <code>android-system-image-*</code> recipes are legacy; the current direction is a generic GSI chosen at install time, with vendor blobs staying on the device.</p>
+  <p class="count prose">Source: the build-infrastructure notes of 30 October to 3 November 2026. One conflict in them is unresolved: a commit says lint runs on GitLab's hosted runners, while the setup plan tags every job for the shared x86-64 runners.</p>
+</section>
+
+<!-- ============ RECENT ============ -->
+<section class="block" id="recent">
+  <div class="head">
+    <div class="eyebrow">Since 2 October</div>
+    <h2>Recent additions</h2>
+    <p class="prose">What the tree gained after the first version of this page, read from the commit history and recipes.</p>
+  </div>
+  <ul class="prose" style="padding-left:20px;display:grid;gap:10px">
+    <li><b>Layers.</b> <code>meta-asus</code>, <code>meta-unihertz</code> and <code>meta-luneos-pdk</code> are new. The PDK layer provides the <code>pdk-armel</code> pseudo-machine, which builds the soft-float userland shipped at <code>/opt/pdk/sysroot</code>, and SDL 1.2 compatibility libraries for legacy PDK apps.</li>
+    <li><b>Halium tooling.</b> <code>halium-legacy-vendor.bbclass</code> converts a pre-Treble vendor so it runs under the 16.0 GSI and is used by several of the new targets. <code>userdataimg.bbclass</code> moved into <code>meta-android</code>. <code>luneos-charger</code> adds an off-mode charging screen to the Halium initramfs, and <code>luneos-fastboot-package</code> now handles vbmeta, GKI boot images and per-machine boot slots.</li>
+    <li><b>Mainline.</b> <code>mako</code> is now a mainline Nexus 4, with the Halium build kept as <code>mako-halium</code>. The three Pine64 kernels share one <code>linux-megi.inc</code> on megi <code>orange-pi-7.2</code>. The Mecha Comet moved to a Fedora-Mecha 7.2 kernel where its display works.</li>
+    <li><b>Hardening and QA.</b> New image QA, signing QA and kernel CVE classes, and an SBOM include. Root shells and telnet are limited to debug builds, and several images ship default-deny firewall rules and key-only SSH.</li>
+    <li><b>Calling and messaging.</b> WhatsApp, Telegram and Teams calls (with video) through <code>purple-combined</code>, an IRC account type, conference-call merge and split in <code>voicecall</code>, and cell broadcast public warnings.</li>
+    <li><b>Cloud and media.</b> Synergy connectors for Box, Dropbox, Flickr, Google Drive, HiDrive, Immich, kDrive, Koofr, Mega, OneDrive, pCloud, PhotoPrism, S3, SmugMug, WebDAV and Yandex, and video providers for Jellyfin, PeerTube, UPnP/DLNA, Plex, Emby and M3U lists. Also Spotify Connect through <code>librespot</code> and hardware H.264 encode in <code>gst-droid</code>.</li>
+    <li><b>Apps and services.</b> A LibreOfficeKit office service, the LuneOS Explorer, and apps for authenticator, documents, music, remote, SIM toolkit, sound recorder, system monitor, video player and weather.</li>
+    <li><b>Help.</b> The LuneOS Help site at <code>help.luneos.org</code> is static and works offline. It is built from Markdown in the <code>luneos-help</code> repository, and the same output is meant for the on-device Help app. Its pages adapt to the device through eight <code>deviceinfo</code> features: tablet, keyboard, modem, camera and the home, volume, power and brightness controls.</li>
+  </ul>
 </section>
 
 <!-- ============ TARGETS ============ -->
@@ -790,7 +837,7 @@ footer a{color:var(--soft)}
   <div class="head">
     <div class="eyebrow">Machines</div>
     <h2>Target matrix</h2>
-    <p class="prose">Every <code>MACHINE</code> in the tree: 45 of them, ten added in the last two weeks. <b>Active</b> means a current image in <code>tmp/deploy/images</code> or confirmed working by the maintainer. <b>Builds</b> means build history but no current image. Halium devices are split into two tiers: tier A runs the Android Common Kernel (GKI) with the stock vendor modules, tier B builds a device-specific vendor kernel in-tree. Three tier B devices (Q25, MP01, Pixel 4a 5G) borrow GKI <i>packaging</i> without a GKI kernel.</p>
+    <p class="prose">Every <code>MACHINE</code> in the tree: 51 of them, plus <code>pdk-armel</code>, a pseudo-machine that builds the legacy PDK userland and is not a device. <b>Active</b> means a current image in <code>tmp/deploy/images</code> or confirmed working by the maintainer. <b>Builds</b> means build history but no current image. Halium devices are split into two tiers: tier A runs the Android Common Kernel (GKI) with the stock vendor modules, tier B builds a device-specific vendor kernel in-tree. Three tier B devices (Q25, MP01, Pixel 4a 5G) borrow GKI <i>packaging</i> without a GKI kernel.</p>
   </div>
   <div class="filters">
     <div class="seg" role="group" aria-label="Filter by family">
@@ -807,14 +854,14 @@ footer a{color:var(--soft)}
       <tbody id="tbody"></tbody>
     </table>
   </div>
-  <p class="count">SoC names for the older Tier B devices are from general knowledge, not the machine configs. Three of these are not committed yet: the <code>meta-unihertz</code> layer with its three Titans, <code>sm-t220</code>, and <code>mako-halium</code>. <code>rosy</code> is a mainline machine but still carries a leftover <code>android-system-image-rosy</code> recipe.</p>
+  <p class="count">SoC names for the older Tier B devices are from general knowledge, not the machine configs. The new Halium targets are at very different stages: <code>a3-2015-halium</code> boots, <code>bullhead-halium</code> reached the UI in its latest test round with known faults, and <code>flo-halium</code>, <code>goyavewifi</code> and <code>vince-halium</code> build but have not been booted, according to their <code>*-STATUS.md</code> files. <code>a002</code> is untested: it has no status file and its features are all untried. <code>rosy</code> is a mainline machine but still carries a leftover <code>android-system-image-rosy</code> recipe.</p>
 </section>
 </div>
 
 <footer>
   <div class="wrap">
     <div>LuneOS is free software, built by the webOS Ports community.</div>
-    <div>Read from the wrynose build tree, 2 October 2026. <a href="https://www.webosose.org/docs/guides/core-topics/architecture/architecture-overview/">webOS OSE architecture overview</a></div>
+    <div>Read from the wrynose build tree, 5 November 2026. <a href="https://www.webosose.org/docs/guides/core-topics/architecture/architecture-overview/">webOS OSE architecture overview</a></div>
   </div>
 </footer>
 
@@ -843,6 +890,12 @@ footer a{color:var(--soft)}
     ['panther','Google Pixel 7','Tensor G2','h','A','linux-halium-gki 6.1.172','meta-google','builds'],
     ['tangorpro','Google Pixel Tablet','Tensor G2','h','A','linux-halium-gki 6.1.172','meta-google','active'],
     ['athena','BlackBerry KEY2','SDM660','h','B','linux-blackberry-athena 4.19','meta-blackberry','active'],
+    ['a3-2015-halium','Samsung Galaxy A3 2015','MSM8916','h','B · Halium 16 GSI','linux-samsung-a3-2015-halium 3.10.108','meta-samsung','active'],
+    ['bullhead-halium','LG Nexus 5X','MSM8992','h','B · Halium 16 GSI','linux-lg-bullhead-halium 3.10','meta-lg','wip'],
+    ['flo-halium','ASUS Nexus 7 (2013) Wi-Fi','APQ8064','h','B · Halium 16 GSI','linux-asus-flo-halium 3.4','meta-asus','builds'],
+    ['a002','ASUS Zenfone AR (ZS571KL)','MSM8996','h','B · Halium 16 GSI','linux-asus-a002-halium 3.18.31','meta-asus','unclear'],
+    ['goyavewifi','Samsung Galaxy Tab 3 Lite (SM-T113)','Spreadtrum SC7730S','h','B · Halium 16 GSI','linux-samsung-goyavewifi 3.10.103','meta-samsung','builds'],
+    ['vince-halium','Xiaomi Redmi 5 Plus','MSM8953','h','B · Halium 16 GSI','linux-xiaomi-vince-halium 4.9.251','meta-xiaomi','builds'],
     ['mindphone','GreenTouch MindPhone','MediaTek (armv7)','h','B','4.14','meta-greentouch','active'],
     ['tissot-halium','Xiaomi Mi A1','MSM8953','h','B','4.9 · Halium 16 GSI','meta-xiaomi','builds'],
     ['mido-halium','Xiaomi Redmi Note 4','MSM8953','h','B','4.9 · Halium 16 GSI','meta-xiaomi','builds'],
