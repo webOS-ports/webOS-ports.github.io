@@ -837,7 +837,7 @@ footer a{color:var(--soft)}
   <div class="head">
     <div class="eyebrow">Machines</div>
     <h2>Target matrix</h2>
-    <p class="prose">Every <code>MACHINE</code> in the tree: 52 of them, plus <code>pdk-armel</code>, a pseudo-machine that builds the legacy PDK userland and is not a device. <b>Active</b> means a current image in <code>tmp/deploy/images</code> or confirmed working by the maintainer. <b>Builds</b> means build history but no current image. Halium devices are split into two tiers: tier A runs the Android Common Kernel (GKI) with the stock vendor modules, tier B builds a device-specific vendor kernel in-tree. Three tier B devices (Q25, MP01, Pixel 4a 5G) borrow GKI <i>packaging</i> without a GKI kernel.</p>
+    <p class="prose">Every <code>MACHINE</code> in the tree: 54 of them, plus <code>pdk-armel</code>, a pseudo-machine that builds the legacy PDK userland and is not a device. <b>Active</b> means a current image in <code>tmp/deploy/images</code> or confirmed working by the maintainer. <b>Builds</b> means build history but no current image. Halium devices are split into two tiers: tier A runs the Android Common Kernel (GKI) with the stock vendor modules, tier B builds a device-specific vendor kernel in-tree. Four tier B devices (Q25, MP01, Pixel 4a 5G, BraX3) borrow GKI <i>packaging</i> without a GKI kernel.</p>
   </div>
   <div class="filters">
     <div class="seg" role="group" aria-label="Filter by family">
@@ -885,6 +885,8 @@ footer a{color:var(--soft)}
     ['mako-halium','LG Nexus 4','APQ8064','h','B','linux-lg-mako-halium 3.4.113 · Halium 16 GSI','meta-lg','active'],
     ['hammerhead-halium','LG Nexus 5','MSM8974','h','B','3.4 · Halium 16 GSI','meta-lg','active'],
     ['lagos','Motorola Moto G06','MT6768','h','A','linux-halium-gki 6.6','meta-motorola','active'],
+    ['brax3','Brax BraX3 (BaseOS vendor)','MT6835 Dimensity 6300','h','B · GKI packaging','linux-brax-brax3 5.15.209','meta-brax','active'],
+    ['brax3-iode','Brax BraX3 (iodéOS vendor)','MT6835 Dimensity 6300','h','B · GKI packaging','linux-brax-brax3 5.15.209','meta-brax','active'],
     ['mp01','Minimal Phone MP01 (E Ink)','MediaTek','h','B · GKI packaging','linux-minimal-mp01 5.10.233','meta-minimal','active'],
     ['sargo','Google Pixel 3a','SDM670','h','B','linux-google-sargo 4.9','meta-google','active'],
     ['bluejay','Google Pixel 6a','Tensor GS101','h','A','linux-halium-gki 6.1.172','meta-google','active'],
