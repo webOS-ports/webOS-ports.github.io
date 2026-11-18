@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C+DAV Privacy Policy — LuneOS</title>
+<meta name="description" content="How the LuneOS C+DAV contacts and calendar connector handles your data.">
+<link rel="icon" href="/luneos-mark.png">
+<link rel="preload" href="/fonts/prelude-regular.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+@font-face{font-family:Prelude;src:url(/fonts/prelude-light.woff2) format("woff2");font-weight:300;font-style:normal;font-display:swap}
+@font-face{font-family:Prelude;src:url(/fonts/prelude-regular.woff2) format("woff2");font-weight:400;font-style:normal;font-display:swap}
+@font-face{font-family:Prelude;src:url(/fonts/prelude-bold.woff2) format("woff2");font-weight:700;font-style:normal;font-display:swap}
+:root{--paper:#F4F8FC;--card:#FFFFFF;--ink:#00123A;--soft:#5B6B85;--rule:#DBE4F0;--blue:#1685E8;--blue-deep:#0B5CC0;
+--sans:Prelude,"Segoe UI",system-ui,-apple-system,sans-serif;--mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--sans);font-size:17px;line-height:1.65}
+a{color:var(--blue-deep);text-decoration:none;border-bottom:1px solid rgba(22,133,232,.32)}
+a:hover{border-bottom-color:var(--blue)}
+a:focus-visible{outline:2px solid var(--blue);outline-offset:3px;border-radius:2px}
+.wrap{width:100%;max-width:1120px;margin:0 auto;padding-inline:24px}
+h1,h2{font-family:var(--sans);font-weight:300;line-height:1.08;letter-spacing:-.015em;margin:0}
+p{margin:0}
+code{font-family:var(--mono);font-size:.84em;overflow-wrap:anywhere}
+.top{padding-block:24px;border-bottom:1px solid var(--rule)}
+.top .wrap{display:flex;align-items:center;justify-content:space-between;gap:24px;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:13px;border:0}
+.brand img{width:76px;height:76px;display:block}
+.brand b{font-size:21px;font-weight:300;letter-spacing:-.01em;color:var(--ink)}
+.nav{display:flex;gap:26px;flex-wrap:wrap;font-size:15.5px}
+.nav a{color:var(--soft);border:0}
+.nav a:hover{color:var(--ink)}
+.intro{padding-block:56px 34px}
+.eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--soft)}
+.intro h1{font-size:clamp(38px,5.6vw,64px);margin-top:12px}
+.lede{font-size:clamp(17px,2vw,20px);color:var(--soft);max-width:62ch;margin:22px 0 0}
+.doc{max-width:72ch;padding-bottom:64px}
+.doc h2{font-size:28px;margin:44px 0 14px}
+.doc p{margin:0 0 14px}
+.doc ul{margin:0 0 14px;padding-left:22px}
+.doc li{margin-bottom:8px}
+.scroll{overflow-x:auto;margin:0 0 14px}
+table{width:100%;border-collapse:collapse;background:var(--card);font-size:15.5px}
+th,td{text-align:left;vertical-align:top;padding:10px 12px;border:1px solid var(--rule)}
+th{font-weight:400;color:var(--soft)}
+footer{padding-block:44px 64px;border-top:1px solid var(--rule);color:var(--soft);font-size:15px}
+footer .wrap{display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap}
+footer a{color:var(--soft)}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="/"><img src="/luneos-mark.png" alt=""><b>LuneOS</b></a>
+    <nav class="nav">
+      <a href="/#devices">Devices</a>
+      <a href="/#releases">Releases</a>
+      <a href="/architecture/">Architecture</a>
+      <a href="https://wiki.webos-ports.org/">Wiki</a>
+      <a href="https://github.com/webOS-ports">Source</a>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+<div class="intro">
+  <div class="eyebrow">LuneOS C+DAV</div>
+  <h1>Privacy Policy</h1>
+  <p class="lede">What the LuneOS C+DAV connector does with your account, contacts and calendars.</p>
+</div>
+<div class="doc">
+<p>This policy covers LuneOS C+DAV, the LuneOS account connector that synchronises contacts and calendars with Google and with other CardDAV and CalDAV servers. It is free software maintained by the webOS Ports community (“we”). The <a href="https://github.com/webOS-ports/org.webosports.service.contacts.carddav">source code is public</a>.</p>
+
+<h2>The short version</h2>
+<ul>
+<li>LuneOS C+DAV runs on your device. It connects directly from your device to Google, or to the server you choose.</li>
+<li>We run no server for it, and we do not receive, store or sell your account data, contacts or calendars.</li>
+<li>It contains no advertising or analytics.</li>
+</ul>
+
+<h2>Google data the app accesses</h2>
+<p>When you add a Google account, Google asks you to approve these permissions:</p>
+<div class="scroll"><table>
+<thead><tr><th scope="col">Permission</th><th scope="col">Why it is needed</th></tr></thead>
+<tbody>
+<tr><td><code>auth/calendar</code></td><td>Read your calendars and events, and send changes you make on the device back to Google.</td></tr>
+<tr><td><code>auth/carddav</code></td><td>Reach your contacts through Google’s CardDAV service.</td></tr>
+<tr><td><code>auth/contacts</code></td><td>Read your contacts, and send changes you make on the device back to Google.</td></tr>
+<tr><td><code>auth/userinfo.email</code></td><td>Get your email address, which identifies the account on the device.</td></tr>
+<tr><td><code>auth/userinfo.profile</code></td><td>Requested with sign-in. The app does not keep your profile details as part of the account.</td></tr>
+</tbody>
+</table></div>
+
+<h2>How your data is used</h2>
+<p>Your data is used only to sign in to your account and to keep the contacts and calendars on your device in sync with your account. This includes sending changes you make on the device back to the account.</p>
+<p>LuneOS C+DAV’s use and transfer of information received from Google APIs adheres to the <a href="https://developers.google.com/terms/api-services-user-data-policy">Google API Services User Data Policy</a>, including its Limited Use requirements. Google user data is not used for advertising, is not sold, and is not used to train artificial intelligence or machine learning models.</p>
+
+<h2>Where your data is stored</h2>
+<p>Everything the app stores stays on your device:</p>
+<ul>
+<li><strong>Sign-in data</strong>, such as access and refresh tokens or a server password, is kept by the system key manager.</li>
+<li><strong>Account settings</strong>, contacts and calendar events are kept in the device database, where other LuneOS apps such as Contacts and Calendar can use them.</li>
+<li><strong>Contact photos</strong> are kept in device storage.</li>
+<li><strong>Diagnostic logs</strong> are written to the device’s system log and to a log file in device storage. They can contain account names, server addresses and details of synchronised contacts and events. Passwords, sign-in tokens and the raw data exchanged with servers are kept out of them. The app does not send logs anywhere. Take care if you copy or share them, for example in a bug report.</li>
+</ul>
+
+<h2>Sharing</h2>
+<p>We do not receive your data, so we have none to share. The app sends data only to Google or to the CardDAV or CalDAV server of the account you add. That provider’s own privacy policy applies to the data it holds.</p>
+
+<h2>Keeping and deleting data</h2>
+<p>Data stays on your device until you remove it. Removing the account in the LuneOS Accounts app deletes its stored sign-in data and settings, and removes its synchronised contacts and calendars from the device. Removing an account does not delete anything from Google or your server.</p>
+<p>Contact photos and diagnostic logs may stay in device storage after the account is removed. Erasing the device removes them.</p>
+<p>You can also withdraw the app’s access to your Google account at any time from your <a href="https://myaccount.google.com/connections">Google Account connections page</a>.</p>
+
+<h2>Security</h2>
+<p>Connections to Google use HTTPS. For other servers, the connection uses the address you or your provider’s settings supply, so use an <code>https://</code> address. Anyone with access to your unlocked device or its storage may be able to reach the data on it.</p>
+
+<h2>Children</h2>
+<p>The app is not directed at children. It may be used only with an account you are allowed to use under your provider’s rules.</p>
+
+<h2>Changes</h2>
+<p>If this policy changes, the new version will be published on this page with a new date.</p>
+
+<h2>Contact</h2>
+<p>Questions can be raised through the <a href="https://github.com/webOS-ports/org.webosports.service.contacts.carddav/issues">project’s issue tracker</a>. Issues are public, so please do not include personal data or logs that contain it.</p>
+
+</div>
+</main>
+
+<footer>
+  <div class="wrap">
+    <div>LuneOS is free software, built by the webOS Ports community.</div>
+    <div>Last updated 18 November 2026. <a href="/cdav/terms/">Terms of Service</a></div>
+  </div>
+</footer>
+
+</body>
+</html>
